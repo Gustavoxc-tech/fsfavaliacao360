@@ -17,6 +17,9 @@ import { Route as AppCollaboratorRouteImport } from './routes/_app.collaborator'
 import { Route as AppAdminRouteImport } from './routes/_app.admin'
 import { Route as AppAdminIndexRouteImport } from './routes/_app.admin.index'
 import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
+import { Route as AppAdminPeopleRouteImport } from './routes/_app.admin.people'
+import { Route as AppAdminCyclesRouteImport } from './routes/_app.admin.cycles'
+import { Route as AppAdminCompetenciesRouteImport } from './routes/_app.admin.competencies'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -58,6 +61,21 @@ const AppEvaluatorAssignmentIdRoute =
     path: '/$assignmentId',
     getParentRoute: () => AppEvaluatorRoute,
   } as any)
+const AppAdminPeopleRoute = AppAdminPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCyclesRoute = AppAdminCyclesRouteImport.update({
+  id: '/cycles',
+  path: '/cycles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCompetenciesRoute = AppAdminCompetenciesRouteImport.update({
+  id: '/competencies',
+  path: '/competencies',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -65,6 +83,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AppAdminRouteWithChildren
   '/collaborator': typeof AppCollaboratorRoute
   '/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/people': typeof AppAdminPeopleRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin/': typeof AppAdminIndexRoute
 }
@@ -73,6 +94,9 @@ export interface FileRoutesByTo {
   '/collaborator': typeof AppCollaboratorRoute
   '/evaluator': typeof AppEvaluatorRouteWithChildren
   '/': typeof AppIndexRoute
+  '/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/people': typeof AppAdminPeopleRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin': typeof AppAdminIndexRoute
 }
@@ -84,6 +108,9 @@ export interface FileRoutesById {
   '/_app/collaborator': typeof AppCollaboratorRoute
   '/_app/evaluator': typeof AppEvaluatorRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/_app/admin/cycles': typeof AppAdminCyclesRoute
+  '/_app/admin/people': typeof AppAdminPeopleRoute
   '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
 }
@@ -95,6 +122,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/collaborator'
     | '/evaluator'
+    | '/admin/competencies'
+    | '/admin/cycles'
+    | '/admin/people'
     | '/evaluator/$assignmentId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -103,6 +133,9 @@ export interface FileRouteTypes {
     | '/collaborator'
     | '/evaluator'
     | '/'
+    | '/admin/competencies'
+    | '/admin/cycles'
+    | '/admin/people'
     | '/evaluator/$assignmentId'
     | '/admin'
   id:
@@ -113,6 +146,9 @@ export interface FileRouteTypes {
     | '/_app/collaborator'
     | '/_app/evaluator'
     | '/_app/'
+    | '/_app/admin/competencies'
+    | '/_app/admin/cycles'
+    | '/_app/admin/people'
     | '/_app/evaluator/$assignmentId'
     | '/_app/admin/'
   fileRoutesById: FileRoutesById
@@ -180,14 +216,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEvaluatorAssignmentIdRouteImport
       parentRoute: typeof AppEvaluatorRoute
     }
+    '/_app/admin/people': {
+      id: '/_app/admin/people'
+      path: '/people'
+      fullPath: '/admin/people'
+      preLoaderRoute: typeof AppAdminPeopleRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/cycles': {
+      id: '/_app/admin/cycles'
+      path: '/cycles'
+      fullPath: '/admin/cycles'
+      preLoaderRoute: typeof AppAdminCyclesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/competencies': {
+      id: '/_app/admin/competencies'
+      path: '/competencies'
+      fullPath: '/admin/competencies'
+      preLoaderRoute: typeof AppAdminCompetenciesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
 interface AppAdminRouteChildren {
+  AppAdminCompetenciesRoute: typeof AppAdminCompetenciesRoute
+  AppAdminCyclesRoute: typeof AppAdminCyclesRoute
+  AppAdminPeopleRoute: typeof AppAdminPeopleRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminCompetenciesRoute: AppAdminCompetenciesRoute,
+  AppAdminCyclesRoute: AppAdminCyclesRoute,
+  AppAdminPeopleRoute: AppAdminPeopleRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
 }
 
