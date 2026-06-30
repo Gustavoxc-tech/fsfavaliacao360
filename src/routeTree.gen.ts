@@ -13,6 +13,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppEvaluatorRouteImport } from './routes/_app.evaluator'
+import { Route as AppCollaboratorRouteImport } from './routes/_app.collaborator'
+import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppAdminIndexRouteImport } from './routes/_app.admin.index'
 import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -34,6 +37,21 @@ const AppEvaluatorRoute = AppEvaluatorRouteImport.update({
   path: '/evaluator',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCollaboratorRoute = AppCollaboratorRouteImport.update({
+  id: '/collaborator',
+  path: '/collaborator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppEvaluatorAssignmentIdRoute =
   AppEvaluatorAssignmentIdRouteImport.update({
     id: '/$assignmentId',
@@ -44,35 +62,59 @@ const AppEvaluatorAssignmentIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/collaborator': typeof AppCollaboratorRoute
   '/evaluator': typeof AppEvaluatorRouteWithChildren
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/collaborator': typeof AppCollaboratorRoute
   '/evaluator': typeof AppEvaluatorRouteWithChildren
   '/': typeof AppIndexRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/admin': typeof AppAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/collaborator': typeof AppCollaboratorRoute
   '/_app/evaluator': typeof AppEvaluatorRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/evaluator' | '/evaluator/$assignmentId'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/collaborator'
+    | '/evaluator'
+    | '/evaluator/$assignmentId'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/evaluator' | '/' | '/evaluator/$assignmentId'
+  to:
+    | '/auth'
+    | '/collaborator'
+    | '/evaluator'
+    | '/'
+    | '/evaluator/$assignmentId'
+    | '/admin'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/admin'
+    | '/_app/collaborator'
     | '/_app/evaluator'
     | '/_app/'
     | '/_app/evaluator/$assignmentId'
+    | '/_app/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -110,6 +152,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEvaluatorRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/collaborator': {
+      id: '/_app/collaborator'
+      path: '/collaborator'
+      fullPath: '/collaborator'
+      preLoaderRoute: typeof AppCollaboratorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/evaluator/$assignmentId': {
       id: '/_app/evaluator/$assignmentId'
       path: '/$assignmentId'
@@ -119,6 +182,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppAdminRouteChildren {
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminIndexRoute: AppAdminIndexRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
 
 interface AppEvaluatorRouteChildren {
   AppEvaluatorAssignmentIdRoute: typeof AppEvaluatorAssignmentIdRoute
@@ -133,11 +208,15 @@ const AppEvaluatorRouteWithChildren = AppEvaluatorRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppCollaboratorRoute: typeof AppCollaboratorRoute
   AppEvaluatorRoute: typeof AppEvaluatorRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
+  AppCollaboratorRoute: AppCollaboratorRoute,
   AppEvaluatorRoute: AppEvaluatorRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
