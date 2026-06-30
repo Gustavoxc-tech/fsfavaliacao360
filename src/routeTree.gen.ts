@@ -9,50 +9,328 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppEvaluatorRouteImport } from './routes/_app.evaluator'
+import { Route as AppCollaboratorRouteImport } from './routes/_app.collaborator'
+import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppAdminIndexRouteImport } from './routes/_app.admin.index'
+import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
+import { Route as AppAdminPeopleRouteImport } from './routes/_app.admin.people'
+import { Route as AppAdminCyclesRouteImport } from './routes/_app.admin.cycles'
+import { Route as AppAdminCompetenciesRouteImport } from './routes/_app.admin.competencies'
+import { Route as AppAdminAssignmentsRouteImport } from './routes/_app.admin.assignments'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEvaluatorRoute = AppEvaluatorRouteImport.update({
+  id: '/evaluator',
+  path: '/evaluator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCollaboratorRoute = AppCollaboratorRouteImport.update({
+  id: '/collaborator',
+  path: '/collaborator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppEvaluatorAssignmentIdRoute =
+  AppEvaluatorAssignmentIdRouteImport.update({
+    id: '/$assignmentId',
+    path: '/$assignmentId',
+    getParentRoute: () => AppEvaluatorRoute,
+  } as any)
+const AppAdminPeopleRoute = AppAdminPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCyclesRoute = AppAdminCyclesRouteImport.update({
+  id: '/cycles',
+  path: '/cycles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCompetenciesRoute = AppAdminCompetenciesRouteImport.update({
+  id: '/competencies',
+  path: '/competencies',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminAssignmentsRoute = AppAdminAssignmentsRouteImport.update({
+  id: '/assignments',
+  path: '/assignments',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/auth': typeof AuthRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/collaborator': typeof AppCollaboratorRoute
+  '/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/reports': typeof AppReportsRoute
+  '/admin/assignments': typeof AppAdminAssignmentsRoute
+  '/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/people': typeof AppAdminPeopleRoute
+  '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/collaborator': typeof AppCollaboratorRoute
+  '/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/reports': typeof AppReportsRoute
+  '/': typeof AppIndexRoute
+  '/admin/assignments': typeof AppAdminAssignmentsRoute
+  '/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/people': typeof AppAdminPeopleRoute
+  '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/admin': typeof AppAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/collaborator': typeof AppCollaboratorRoute
+  '/_app/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/_app/reports': typeof AppReportsRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/admin/assignments': typeof AppAdminAssignmentsRoute
+  '/_app/admin/competencies': typeof AppAdminCompetenciesRoute
+  '/_app/admin/cycles': typeof AppAdminCyclesRoute
+  '/_app/admin/people': typeof AppAdminPeopleRoute
+  '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/collaborator'
+    | '/evaluator'
+    | '/reports'
+    | '/admin/assignments'
+    | '/admin/competencies'
+    | '/admin/cycles'
+    | '/admin/people'
+    | '/evaluator/$assignmentId'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/auth'
+    | '/collaborator'
+    | '/evaluator'
+    | '/reports'
+    | '/'
+    | '/admin/assignments'
+    | '/admin/competencies'
+    | '/admin/cycles'
+    | '/admin/people'
+    | '/evaluator/$assignmentId'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/auth'
+    | '/_app/admin'
+    | '/_app/collaborator'
+    | '/_app/evaluator'
+    | '/_app/reports'
+    | '/_app/'
+    | '/_app/admin/assignments'
+    | '/_app/admin/competencies'
+    | '/_app/admin/cycles'
+    | '/_app/admin/people'
+    | '/_app/evaluator/$assignmentId'
+    | '/_app/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/evaluator': {
+      id: '/_app/evaluator'
+      path: '/evaluator'
+      fullPath: '/evaluator'
+      preLoaderRoute: typeof AppEvaluatorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/collaborator': {
+      id: '/_app/collaborator'
+      path: '/collaborator'
+      fullPath: '/collaborator'
+      preLoaderRoute: typeof AppCollaboratorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/evaluator/$assignmentId': {
+      id: '/_app/evaluator/$assignmentId'
+      path: '/$assignmentId'
+      fullPath: '/evaluator/$assignmentId'
+      preLoaderRoute: typeof AppEvaluatorAssignmentIdRouteImport
+      parentRoute: typeof AppEvaluatorRoute
+    }
+    '/_app/admin/people': {
+      id: '/_app/admin/people'
+      path: '/people'
+      fullPath: '/admin/people'
+      preLoaderRoute: typeof AppAdminPeopleRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/cycles': {
+      id: '/_app/admin/cycles'
+      path: '/cycles'
+      fullPath: '/admin/cycles'
+      preLoaderRoute: typeof AppAdminCyclesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/competencies': {
+      id: '/_app/admin/competencies'
+      path: '/competencies'
+      fullPath: '/admin/competencies'
+      preLoaderRoute: typeof AppAdminCompetenciesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/assignments': {
+      id: '/_app/admin/assignments'
+      path: '/assignments'
+      fullPath: '/admin/assignments'
+      preLoaderRoute: typeof AppAdminAssignmentsRouteImport
+      parentRoute: typeof AppAdminRoute
     }
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminAssignmentsRoute: typeof AppAdminAssignmentsRoute
+  AppAdminCompetenciesRoute: typeof AppAdminCompetenciesRoute
+  AppAdminCyclesRoute: typeof AppAdminCyclesRoute
+  AppAdminPeopleRoute: typeof AppAdminPeopleRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAssignmentsRoute: AppAdminAssignmentsRoute,
+  AppAdminCompetenciesRoute: AppAdminCompetenciesRoute,
+  AppAdminCyclesRoute: AppAdminCyclesRoute,
+  AppAdminPeopleRoute: AppAdminPeopleRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
+interface AppEvaluatorRouteChildren {
+  AppEvaluatorAssignmentIdRoute: typeof AppEvaluatorAssignmentIdRoute
+}
+
+const AppEvaluatorRouteChildren: AppEvaluatorRouteChildren = {
+  AppEvaluatorAssignmentIdRoute: AppEvaluatorAssignmentIdRoute,
+}
+
+const AppEvaluatorRouteWithChildren = AppEvaluatorRoute._addFileChildren(
+  AppEvaluatorRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppCollaboratorRoute: typeof AppCollaboratorRoute
+  AppEvaluatorRoute: typeof AppEvaluatorRouteWithChildren
+  AppReportsRoute: typeof AppReportsRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
+  AppCollaboratorRoute: AppCollaboratorRoute,
+  AppEvaluatorRoute: AppEvaluatorRouteWithChildren,
+  AppReportsRoute: AppReportsRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
