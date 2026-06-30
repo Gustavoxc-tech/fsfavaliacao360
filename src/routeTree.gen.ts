@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppEvaluatorRouteImport } from './routes/_app.evaluator'
+import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -27,27 +29,50 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEvaluatorRoute = AppEvaluatorRouteImport.update({
+  id: '/evaluator',
+  path: '/evaluator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEvaluatorAssignmentIdRoute =
+  AppEvaluatorAssignmentIdRouteImport.update({
+    id: '/$assignmentId',
+    path: '/$assignmentId',
+    getParentRoute: () => AppEvaluatorRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/evaluator': typeof AppEvaluatorRouteWithChildren
   '/': typeof AppIndexRoute
+  '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/evaluator': typeof AppEvaluatorRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth'
+  fullPaths: '/' | '/auth' | '/evaluator' | '/evaluator/$assignmentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/'
-  id: '__root__' | '/_app' | '/auth' | '/_app/'
+  to: '/auth' | '/evaluator' | '/' | '/evaluator/$assignmentId'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/auth'
+    | '/_app/evaluator'
+    | '/_app/'
+    | '/_app/evaluator/$assignmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,14 +103,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/evaluator': {
+      id: '/_app/evaluator'
+      path: '/evaluator'
+      fullPath: '/evaluator'
+      preLoaderRoute: typeof AppEvaluatorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/evaluator/$assignmentId': {
+      id: '/_app/evaluator/$assignmentId'
+      path: '/$assignmentId'
+      fullPath: '/evaluator/$assignmentId'
+      preLoaderRoute: typeof AppEvaluatorAssignmentIdRouteImport
+      parentRoute: typeof AppEvaluatorRoute
+    }
   }
 }
 
+interface AppEvaluatorRouteChildren {
+  AppEvaluatorAssignmentIdRoute: typeof AppEvaluatorAssignmentIdRoute
+}
+
+const AppEvaluatorRouteChildren: AppEvaluatorRouteChildren = {
+  AppEvaluatorAssignmentIdRoute: AppEvaluatorAssignmentIdRoute,
+}
+
+const AppEvaluatorRouteWithChildren = AppEvaluatorRoute._addFileChildren(
+  AppEvaluatorRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppEvaluatorRoute: typeof AppEvaluatorRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppEvaluatorRoute: AppEvaluatorRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 
