@@ -1,93 +1,59 @@
-## Conexão com o Supabase existente
+# Expansão Evoluir 360 — Metas, Acadêmico e Certificações
 
-Já validei a conexão com o projeto `tqtdehcwkzicxjynqtje` usando a anon key (HTTP 200 em `/rest/v1/competencies`). Não vou rodar migrations — todas as tabelas, views, RLS, triggers e funções já existem no seu banco.
+## 1. SQL a rodar no Supabase (entrego em bloco único)
 
-**Passo 1 — Cliente Supabase**
-- Instalar `@supabase/supabase-js`.
-- Criar `src/integrations/supabase/client.ts` (browser) com URL + anon key.
-- Criar `src/integrations/supabase/types.ts` com tipos para as tabelas/views que o front consome (gerados manualmente a partir do schema descrito; depois você pode rodar `supabase gen types typescript` localmente e me enviar o output para substituir).
-- `.env` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
+Como o Supabase é seu (externo), vou gerar um `.sql` para você colar no SQL Editor. Não posso rodar daqui.
 
-**Passo 2 — Auth**
-- Login por **e-mail + senha** (Supabase Auth) — sem cadastro público; admin cria usuários (ou via SQL/painel).
-- `src/routes/auth.tsx` (login + esqueci minha senha + `/reset-password`).
-- `_authenticated/route.tsx` (gate `ssr:false` → redireciona para `/auth`).
-- Hook `useCurrentUser` lendo `auth.users` + `profiles` + `user_roles` (papel: `admin`, `collaborator`).
+### Novas tabelas (RLS habilitada, GRANTs para authenticated; padrão de policies igual ao existente)
+- `goal_categories(id, cycle_id fk evaluation_cycles, name, weight numeric)` — soma por ciclo validada na UI + CHECK opcional.
+- `goals(id, evaluatee_id, cycle_id, category_id, description, expected_score default 5, obtained_score, evidence)`
+- `academic_levels(id, order_index, name, description, evidence_required text, score numeric)`
+- `person_academic_qualifications(id, person_id, academic_level_id, evidence_url, achieved_date, is_current bool)`
+- `certifications_catalog(id, name, issuing_entity, bonus numeric)`
+- `person_certifications(id, person_id, certification_id, obtained bool, obtained_date, evidence_url)`
+- `evaluation_weight_config(id, cycle_id unique, competencies_weight 0.60, goals_weight 0.30, academic_weight 0.05, certification_weight 0.05)`
 
-## Estrutura de rotas
+### Views
+- `v_goal_category_results` — por avaliado/ciclo/categoria: avg(obtained), % alcance vs expected, resultado ponderado = avg_pct × category.weight.
+- `v_goal_final_results` — soma dos ponderados por avaliado/ciclo (0–5 renormalizado).
+- `v_academic_results` — max(score) do nível atual por pessoa.
+- `v_certification_results` — sum(bonus) das obtidas por pessoa.
+- `v_person_final_score` — junta `v_evaluatee_final_results` + metas + acadêmico + certificação × pesos de `evaluation_weight_config` (renormaliza se algum bloco não existir), retorna `overall_final_score`.
 
-```
-/auth                              login + reset
-/reset-password                    nova senha
-/_authenticated/
-  /                                redireciona conforme papel
-  /evaluator                       minhas avaliações pendentes
-  /evaluator/$assignmentId         formulário de avaliação 360°
-  /collaborator                    meus resultados (ciclos)
-  /collaborator/$cycleId           detalhe do meu resultado
-  /admin                           dashboard admin
-  /admin/cycles                    CRUD ciclos + abertura/fechamento
-  /admin/competencies              catálogo (47 competências) read/edit
-  /admin/role-profiles             perfis de cargo + competências
-  /admin/users                     usuários, papéis, cargos
-  /admin/assignments               matriz avaliador↔avaliado por ciclo
-  /admin/reports                   resultados consolidados + export
-  /admin/reports/$cycleId/$userId  relatório individual + CSV/PDF
-```
+### RLS (mesmo padrão)
+- Admin: full via `has_role(auth.uid(),'admin')`.
+- Colaborador: SELECT em suas próprias linhas (`person_id = auth.uid via people`).
+- Escrita: admin. Exceção: `goals.obtained_score` — gestor da atribuição pode UPDATE (via policy checando existência de `evaluation_assignments` do tipo gestor para aquele avaliado no ciclo).
 
-## Telas e funcionalidades
+## 2. Frontend
 
-### Avaliador (`/evaluator`)
-- Lista de avaliações pendentes do ciclo aberto (por `assignments` onde `evaluator_id = me`).
-- Formulário por avaliado: competências do perfil do avaliado, agrupadas por dimensão (Atitudes/Habilidades), com descritores expansíveis, nota 1–5 e comentário opcional por competência + comentário geral.
-- **Save parcial** (rascunho) e **enviar** (lock). Estado lido/escrito em `evaluations` + `evaluation_scores`.
-- Indicador de progresso (X de Y competências preenchidas).
+### Novas rotas admin
+- `src/routes/_app.admin.goals.tsx` — categorias por ciclo (peso, validação soma=100%) + metas por avaliado.
+- `src/routes/_app.admin.academic.tsx` — CRUD `academic_levels` + atribuição de nível atual por pessoa.
+- `src/routes/_app.admin.certifications.tsx` — CRUD `certifications_catalog` + marcação por pessoa.
+- Atualizar tabs em `_app.admin.tsx` com Metas / Qualificação / Certificações.
 
-### Colaborador (`/collaborator`)
-- Lista de ciclos onde tenho resultado disponível (somente fechados/publicados).
-- Detalhe: ler diretamente da view consolidada do banco (não recalcular pesos no front). Mostrar:
-  - Nota final por competência (renormalização já vem da view).
-  - Quebra por tipo de avaliador (auto, gestor, pares, subordinados).
-  - Gráfico radar por dimensão + barras por competência.
-  - Comentários agregados/anonimizados conforme a view permitir.
+### Tela de avaliação (`_app.evaluator.$assignmentId.tsx`)
+- Nova seção "Metas" (só visível para avaliadores do tipo gestor) listando metas do avaliado por categoria, input de `obtained_score`, mostrando % alcance e ponderado da categoria. Auto-save (upsert) igual ao padrão de scores.
 
-### Admin
-- **Ciclos**: criar, abrir, fechar, publicar. Datas, descrição.
-- **Competências**: ler e editar descritores (catálogo único de 47).
-- **Perfis de cargo**: vincular competências por cargo.
-- **Usuários**: listar, atribuir papel (`admin`/`collaborator`) via tabela `user_roles`, vincular cargo.
-- **Matriz de assignments**: por ciclo, montar quem avalia quem e em qual papel (auto / gestor / par / subordinado). UI tabular com bulk-add.
-- **Relatórios**:
-  - Lista de avaliados do ciclo + status (% concluído por tipo de avaliador).
-  - Relatório individual consumindo a view consolidada.
-  - **Export CSV** (client-side, blob download).
-  - **Export PDF** (client-side com `jspdf` + `jspdf-autotable`, incluindo cabeçalho, tabela de competências, gráfico renderizado como imagem via `html2canvas`).
+### "Meus Resultados" (`_app.collaborator.tsx`)
+- Card resumo 4 blocos (Competências / Metas / Acadêmico / Certificação) com nota, peso, resultado; linha final "Nota Final Geral" da `v_person_final_score`. Mantém gráficos existentes.
 
-## Dados, segurança e regras
+### "Relatórios" (`_app.reports.tsx`)
+- Adiciona colunas: Metas | Qualificação | Certificação | Nota Final Geral, lidas de `v_person_final_score`.
+- CSV/PDF exports incluem novas colunas.
 
-- **Todo acesso passa pelo Supabase com a anon key + RLS** — nenhuma chave de service role no front.
-- **Pesos e nota final**: sempre lidos das views (`v_results_by_competency`, `v_results_by_dimension`, ou equivalentes do seu schema). Front não recalcula.
-- **Competências sem nota de um tipo de avaliador**: a view já renormaliza; front só exibe.
-- **Papéis**: checados via `has_role(auth.uid(), 'admin')` (RPC) para liberar rotas admin. O gate de UI é só conveniência — RLS é a defesa real.
-- **Rascunho vs envio**: campo `status` (`draft` / `submitted`) em `evaluations`; após `submitted`, scores são imutáveis (regra de RLS do banco).
+### Types
+- Estender `src/lib/db-types.ts` com novas interfaces + views.
 
-## Stack técnico
+## 3. Ordem de entrega
+1. Gerar `.sql` completo (tabelas + views + RLS + grants).
+2. Enquanto você aplica, eu implemento todos os arquivos frontend.
+3. Ao confirmar aplicação, valido build.
 
-- TanStack Start + TanStack Query (já no template) para data fetching com cache.
-- `react-hook-form` + `zod` para formulários de avaliação.
-- `recharts` para radar/barras.
-- `jspdf` + `jspdf-autotable` + `html2canvas` para PDF.
-- Tudo em português.
+## Detalhes técnicos
+- Todos os cálculos (ponderações, % alcance, renormalização) vivem em SQL/views — frontend só consome.
+- Estilo visual mantido (sidebar escura, cards, badges, Tailwind tokens atuais).
+- Nenhuma alteração destrutiva nas telas atuais.
 
-## Premissas que assumo (me avise se alguma estiver errada)
-
-1. Os nomes exatos das views consolidadas seguem o padrão `v_*` do schema que você descreveu — vou ler o que existir e ajustar.
-2. Existe uma tabela `profiles` espelhando `auth.users` (com `full_name`, `role_profile_id`). Se não, eu crio um arquivo de migration `.sql` para **você rodar manualmente** (não vou aplicar nada no seu banco).
-3. Existe `user_roles` + função `has_role` (padrão Lovable). Mesma regra acima se faltar.
-4. Sem cadastro público — admin cria usuários direto no painel do Supabase ou via tela admin (usando `supabase.auth.admin` exigiria service role; então tela admin **convida** por email com magic link via fluxo padrão do Supabase ou só lista quem já existe).
-
-## Entrega
-
-Vou implementar tudo de uma vez. Se algo precisar de um SQL adicional no seu banco (ex.: trigger faltando, view com nome diferente), eu te entrego o `.sql` para você rodar — não toco no banco automaticamente.
-
-Confirma para eu começar?
+Confirma para eu gerar o `.sql` e começar a implementação em paralelo?
