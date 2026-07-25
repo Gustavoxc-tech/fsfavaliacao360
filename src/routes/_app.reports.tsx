@@ -233,7 +233,7 @@ function ReportsPage() {
                 );
               })}
               {finals?.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
