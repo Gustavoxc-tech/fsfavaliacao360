@@ -188,14 +188,19 @@ function ReportsPage() {
                 <TableHead className="text-right">Pares</TableHead>
                 <TableHead className="text-right">Sub.</TableHead>
                 <TableHead className="text-right">Auto</TableHead>
-                <TableHead className="text-right">Final</TableHead>
-                <TableHead className="w-48">Conclusão</TableHead>
+                <TableHead className="text-right">Compet.</TableHead>
+                <TableHead className="text-right">Metas</TableHead>
+                <TableHead className="text-right">Qualif.</TableHead>
+                <TableHead className="text-right">Cert.</TableHead>
+                <TableHead className="text-right">Final Geral</TableHead>
+                <TableHead className="w-40">Conclusão</TableHead>
                 <TableHead className="text-right">Exportar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {finals?.map((f) => {
                 const pct = completionByEvaluatee(f.evaluatee_id);
+                const o = overallByEvaluatee(f.evaluatee_id);
                 return (
                   <TableRow key={f.evaluatee_id}>
                     <TableCell className="font-medium">{f.evaluatee_name}</TableCell>
@@ -203,7 +208,11 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.pares_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
-                    <TableCell className="text-right font-bold">{fmt(f.final_result)}</TableCell>
+                    <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.goals_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.academic_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.certification_score)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress value={pct} className="flex-1" />
