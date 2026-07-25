@@ -10,6 +10,7 @@ import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { Competency, EvaluationScore, Goal, GoalCategory, VGoalCategoryResult } from "@/lib/db-types";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/_app/evaluator/$assignmentId")({
   component: EvaluationForm,
