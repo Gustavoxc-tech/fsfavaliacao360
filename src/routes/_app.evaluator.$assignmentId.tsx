@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
-import type { Competency, EvaluationScore } from "@/lib/db-types";
+import type { Competency, EvaluationScore, Goal, GoalCategory, VGoalCategoryResult } from "@/lib/db-types";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_app/evaluator/$assignmentId")({
   component: EvaluationForm,
@@ -186,9 +187,127 @@ function EvaluationForm() {
         })}
       </div>
 
+      {assignment?.evaluator_type_code === "gestor" && assignment?.evaluatee_id && assignment?.cycle_id && (
+        <GoalsSection evaluateeId={assignment.evaluatee_id} cycleId={assignment.cycle_id} />
+      )}
+
       <div className="flex justify-end">
         <Button onClick={() => navigate({ to: "/evaluator" })}>Concluir</Button>
       </div>
     </div>
+  );
+}
+
+function GoalsSection({ evaluateeId, cycleId }: { evaluateeId: string; cycleId: string }) {
+  const qc = useQueryClient();
+
+  const { data: goals } = useQuery({
+    queryKey: ["eval-goals", evaluateeId, cycleId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("goals").select("*")
+        .eq("evaluatee_id", evaluateeId).eq("cycle_id", cycleId);
+      return (data ?? []) as Goal[];
+    },
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ["eval-goal-cats", cycleId],
+    queryFn: async () => {
+      const { data } = await supabase.from("goal_categories").select("*").eq("cycle_id", cycleId);
+      return (data ?? []) as GoalCategory[];
+    },
+  });
+
+  const { data: catResults } = useQuery({
+    queryKey: ["eval-goal-cat-results", evaluateeId, cycleId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_goal_category_results").select("*")
+        .eq("evaluatee_id", evaluateeId).eq("cycle_id", cycleId);
+      return (data ?? []) as VGoalCategoryResult[];
+    },
+  });
+
+  const [local, setLocal] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!goals) return;
+    const init: Record<string, string> = {};
+    goals.forEach((g) => { init[g.id] = g.obtained_score != null ? String(g.obtained_score) : ""; });
+    setLocal(init);
+  }, [goals]);
+
+  const save = useMutation({
+    mutationFn: async ({ id, obtained }: { id: string; obtained: number | null }) => {
+      const { error } = await supabase.from("goals").update({ obtained_score: obtained }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["eval-goals", evaluateeId, cycleId] });
+      qc.invalidateQueries({ queryKey: ["eval-goal-cat-results", evaluateeId, cycleId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!goals?.length && !categories?.length) return null;
+
+  const byCategory = (categories ?? []).map((cat) => ({
+    cat,
+    items: (goals ?? []).filter((g) => g.category_id === cat.id),
+    result: catResults?.find((r) => r.category_id === cat.id),
+  })).filter((g) => g.items.length > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Metas</CardTitle>
+        <p className="text-xs text-muted-foreground">Preencha a nota obtida (0 a 5). % de alcance e ponderado são calculados automaticamente.</p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {byCategory.map(({ cat, items, result }) => (
+          <div key={cat.id} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">{cat.name}</div>
+                <div className="text-xs text-muted-foreground">Peso: {cat.weight}</div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Alcance: <strong>{result?.pct_achievement != null ? (result.pct_achievement * 100).toFixed(0) + "%" : "—"}</strong>
+                {" · "}Ponderado: <strong>{result?.weighted_result != null ? Number(result.weighted_result).toFixed(3) : "—"}</strong>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="w-24 text-right">Esperada</TableHead>
+                  <TableHead className="w-32">Obtida</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((g) => (
+                  <TableRow key={g.id}>
+                    <TableCell className="text-sm">{g.description}</TableCell>
+                    <TableCell className="text-right">{g.expected_score}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number" step="0.5" min="0" max="5"
+                        value={local[g.id] ?? ""}
+                        onChange={(e) => setLocal((s) => ({ ...s, [g.id]: e.target.value }))}
+                        onBlur={(e) => {
+                          const raw = e.target.value;
+                          const parsed = raw === "" ? null : Number(raw);
+                          if (parsed !== g.obtained_score) save.mutate({ id: g.id, obtained: parsed });
+                        }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
