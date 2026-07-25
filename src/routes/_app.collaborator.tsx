@@ -21,7 +21,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
-import type { VCompetencyResult, VEvaluateeFinalResult, EvaluationCycle } from "@/lib/db-types";
+import type { VCompetencyResult, VEvaluateeFinalResult, EvaluationCycle, VPersonFinalScore } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/collaborator")({
   component: CollaboratorResults,
@@ -79,6 +79,20 @@ function CollaboratorResults() {
     },
   });
 
+  const { data: overall } = useQuery({
+    queryKey: ["overall", person?.id, effective],
+    enabled: !!person?.id && !!effective,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_person_final_score")
+        .select("*")
+        .eq("evaluatee_person_id", person!.id)
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      return data as VPersonFinalScore | null;
+    },
+  });
+
   const radarData = (byComp ?? []).map((r) => ({
     competency: r.competency_name,
     nota: r.weighted_result ?? 0,
@@ -110,12 +124,41 @@ function CollaboratorResults() {
       {final && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <KPI label="Resultado Final" value={final.final_result} highlight />
+            <KPI label="Resultado 360°" value={final.final_result} highlight />
             <KPI label="Gestor" value={final.gestor_avg} />
             <KPI label="Pares" value={final.pares_avg} />
             <KPI label="Subordinados" value={final.subordinados_avg} />
             <KPI label="Autoavaliação" value={final.autoavaliacao_avg} />
           </div>
+
+          {overall && (
+            <Card>
+              <CardHeader><CardTitle>Resumo Geral Ponderado</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bloco</TableHead>
+                      <TableHead className="text-right">Nota</TableHead>
+                      <TableHead className="text-right">Peso</TableHead>
+                      <TableHead className="text-right">Contribuição</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <SummaryRow label="Competências" score={overall.competencies_score} weight={overall.competencies_weight} />
+                    <SummaryRow label="Metas" score={overall.goals_score} weight={overall.goals_weight} />
+                    <SummaryRow label="Qualificação Acadêmica" score={overall.academic_score} weight={overall.academic_weight} />
+                    <SummaryRow label="Certificações" score={overall.certification_score} weight={overall.certification_weight} />
+                    <TableRow className="border-t-2">
+                      <TableCell className="font-bold">Nota Final Geral</TableCell>
+                      <TableCell colSpan={2}></TableCell>
+                      <TableCell className="text-right font-bold text-lg text-primary">{fmt(overall.overall_final_score)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle>Visão por Competência</CardTitle></CardHeader>
@@ -198,4 +241,16 @@ function KPI({ label, value, highlight }: { label: string; value: number | null;
 
 function fmt(v: number | null | undefined) {
   return v == null ? "—" : Number(v).toFixed(2);
+}
+
+function SummaryRow({ label, score, weight }: { label: string; score: number | null; weight: number }) {
+  const contribution = score != null ? Number(score) * Number(weight) : null;
+  return (
+    <TableRow>
+      <TableCell>{label}</TableCell>
+      <TableCell className="text-right">{fmt(score)}</TableCell>
+      <TableCell className="text-right">{(Number(weight) * 100).toFixed(0)}%</TableCell>
+      <TableCell className="text-right">{fmt(contribution)}</TableCell>
+    </TableRow>
+  );
 }
