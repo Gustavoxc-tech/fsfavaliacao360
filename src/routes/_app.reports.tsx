@@ -82,13 +82,24 @@ function ReportsPage() {
   };
 
   const exportCSV = async (final: VEvaluateeFinalResult) => {
+    const o = overallByEvaluatee(final.evaluatee_id);
     const { data } = await supabase
       .from("v_competency_results")
       .select("*")
       .eq("evaluatee_id", final.evaluatee_id);
     const rows = (data ?? []) as VCompetencyResult[];
+    const summary = [
+      `"Resumo","Nota","Peso","Contribuição"`,
+      `"Competências","${o?.competencies_score ?? ""}","${o?.competencies_weight ?? ""}","${o && o.competencies_score != null ? Number(o.competencies_score) * Number(o.competencies_weight) : ""}"`,
+      `"Metas","${o?.goals_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_score != null ? Number(o.goals_score) * Number(o.goals_weight) : ""}"`,
+      `"Qualificação","${o?.academic_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_score != null ? Number(o.academic_score) * Number(o.academic_weight) : ""}"`,
+      `"Certificações","${o?.certification_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_score != null ? Number(o.certification_score) * Number(o.certification_weight) : ""}"`,
+      `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
+      "",
+    ];
     const header = ["Dimensão", "Categoria", "Competência", "Gestor", "Pares", "Subordinados", "Auto", "Ponderado"];
     const lines = [
+      ...summary,
       header.join(","),
       ...rows.map((r) =>
         [r.dimension, r.category, r.competency_name, r.gestor_score, r.pares_score, r.subordinados_score, r.autoavaliacao_score, r.weighted_result]
@@ -111,11 +122,23 @@ function ReportsPage() {
 
     const jsPDF = (await import("jspdf")).default;
     const doc = new jsPDF();
+  const exportPDF = async (final: VEvaluateeFinalResult) => {
+    setExporting(final.evaluatee_id);
+    const o = overallByEvaluatee(final.evaluatee_id);
+    const { data } = await supabase
+      .from("v_competency_results")
+      .select("*")
+      .eq("evaluatee_id", final.evaluatee_id)
+      .order("display_order");
+    const rows = (data ?? []) as VCompetencyResult[];
+
+    const jsPDF = (await import("jspdf")).default;
+    const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text(`Avaliação 360° — ${final.evaluatee_name}`, 14, 18);
     doc.setFontSize(10);
-    doc.text(`Resultado Final: ${final.final_result ?? "—"}`, 14, 28);
-    doc.text(`Gestor: ${final.gestor_avg ?? "—"}  |  Pares: ${final.pares_avg ?? "—"}  |  Subordinados: ${final.subordinados_avg ?? "—"}  |  Auto: ${final.autoavaliacao_avg ?? "—"}`, 14, 34);
+    doc.text(`Nota Final Geral: ${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "—"}`, 14, 28);
+    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_score)}  |  Qualif.: ${fmt(o?.academic_score)}  |  Cert.: ${fmt(o?.certification_score)}`, 14, 34);
 
     let y = 46;
     doc.setFontSize(9);
