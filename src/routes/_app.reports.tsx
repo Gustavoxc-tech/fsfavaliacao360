@@ -15,6 +15,7 @@ import type {
   VEvaluateeFinalResult,
   VAssignmentProgress,
   VCompetencyResult,
+  VPersonFinalScore,
 } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/reports")({
@@ -61,6 +62,17 @@ function ReportsPage() {
       return (data ?? []) as VAssignmentProgress[];
     },
   });
+
+  const { data: overalls } = useQuery({
+    queryKey: ["overalls", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data } = await supabase.from("v_person_final_score").select("*").eq("cycle_id", cycleId);
+      return (data ?? []) as VPersonFinalScore[];
+    },
+  });
+
+  const overallByEvaluatee = (id: string) => overalls?.find((o) => o.evaluatee_id === id);
 
   const completionByEvaluatee = (evaluateeId: string) => {
     const items = (progress ?? []).filter((p) => p.evaluatee_id === evaluateeId);
