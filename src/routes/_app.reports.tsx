@@ -113,17 +113,6 @@ function ReportsPage() {
 
   const exportPDF = async (final: VEvaluateeFinalResult) => {
     setExporting(final.evaluatee_id);
-    const { data } = await supabase
-      .from("v_competency_results")
-      .select("*")
-      .eq("evaluatee_id", final.evaluatee_id)
-      .order("display_order");
-    const rows = (data ?? []) as VCompetencyResult[];
-
-    const jsPDF = (await import("jspdf")).default;
-    const doc = new jsPDF();
-  const exportPDF = async (final: VEvaluateeFinalResult) => {
-    setExporting(final.evaluatee_id);
     const o = overallByEvaluatee(final.evaluatee_id);
     const { data } = await supabase
       .from("v_competency_results")
