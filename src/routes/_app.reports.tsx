@@ -15,6 +15,7 @@ import type {
   VEvaluateeFinalResult,
   VAssignmentProgress,
   VCompetencyResult,
+  VPersonFinalScore,
 } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/reports")({
@@ -62,6 +63,17 @@ function ReportsPage() {
     },
   });
 
+  const { data: overalls } = useQuery({
+    queryKey: ["overalls", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data } = await supabase.from("v_person_final_score").select("*").eq("cycle_id", cycleId);
+      return (data ?? []) as VPersonFinalScore[];
+    },
+  });
+
+  const overallByEvaluatee = (id: string) => overalls?.find((o) => o.evaluatee_id === id);
+
   const completionByEvaluatee = (evaluateeId: string) => {
     const items = (progress ?? []).filter((p) => p.evaluatee_id === evaluateeId);
     if (items.length === 0) return 0;
@@ -70,13 +82,24 @@ function ReportsPage() {
   };
 
   const exportCSV = async (final: VEvaluateeFinalResult) => {
+    const o = overallByEvaluatee(final.evaluatee_id);
     const { data } = await supabase
       .from("v_competency_results")
       .select("*")
       .eq("evaluatee_id", final.evaluatee_id);
     const rows = (data ?? []) as VCompetencyResult[];
+    const summary = [
+      `"Resumo","Nota","Peso","Contribuição"`,
+      `"Competências","${o?.competencies_score ?? ""}","${o?.competencies_weight ?? ""}","${o && o.competencies_score != null ? Number(o.competencies_score) * Number(o.competencies_weight) : ""}"`,
+      `"Metas","${o?.goals_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_score != null ? Number(o.goals_score) * Number(o.goals_weight) : ""}"`,
+      `"Qualificação","${o?.academic_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_score != null ? Number(o.academic_score) * Number(o.academic_weight) : ""}"`,
+      `"Certificações","${o?.certification_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_score != null ? Number(o.certification_score) * Number(o.certification_weight) : ""}"`,
+      `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
+      "",
+    ];
     const header = ["Dimensão", "Categoria", "Competência", "Gestor", "Pares", "Subordinados", "Auto", "Ponderado"];
     const lines = [
+      ...summary,
       header.join(","),
       ...rows.map((r) =>
         [r.dimension, r.category, r.competency_name, r.gestor_score, r.pares_score, r.subordinados_score, r.autoavaliacao_score, r.weighted_result]
@@ -90,6 +113,7 @@ function ReportsPage() {
 
   const exportPDF = async (final: VEvaluateeFinalResult) => {
     setExporting(final.evaluatee_id);
+    const o = overallByEvaluatee(final.evaluatee_id);
     const { data } = await supabase
       .from("v_competency_results")
       .select("*")
@@ -102,8 +126,8 @@ function ReportsPage() {
     doc.setFontSize(16);
     doc.text(`Avaliação 360° — ${final.evaluatee_name}`, 14, 18);
     doc.setFontSize(10);
-    doc.text(`Resultado Final: ${final.final_result ?? "—"}`, 14, 28);
-    doc.text(`Gestor: ${final.gestor_avg ?? "—"}  |  Pares: ${final.pares_avg ?? "—"}  |  Subordinados: ${final.subordinados_avg ?? "—"}  |  Auto: ${final.autoavaliacao_avg ?? "—"}`, 14, 34);
+    doc.text(`Nota Final Geral: ${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "—"}`, 14, 28);
+    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_score)}  |  Qualif.: ${fmt(o?.academic_score)}  |  Cert.: ${fmt(o?.certification_score)}`, 14, 34);
 
     let y = 46;
     doc.setFontSize(9);
@@ -164,14 +188,19 @@ function ReportsPage() {
                 <TableHead className="text-right">Pares</TableHead>
                 <TableHead className="text-right">Sub.</TableHead>
                 <TableHead className="text-right">Auto</TableHead>
-                <TableHead className="text-right">Final</TableHead>
-                <TableHead className="w-48">Conclusão</TableHead>
+                <TableHead className="text-right">Compet.</TableHead>
+                <TableHead className="text-right">Metas</TableHead>
+                <TableHead className="text-right">Qualif.</TableHead>
+                <TableHead className="text-right">Cert.</TableHead>
+                <TableHead className="text-right">Final Geral</TableHead>
+                <TableHead className="w-40">Conclusão</TableHead>
                 <TableHead className="text-right">Exportar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {finals?.map((f) => {
                 const pct = completionByEvaluatee(f.evaluatee_id);
+                const o = overallByEvaluatee(f.evaluatee_id);
                 return (
                   <TableRow key={f.evaluatee_id}>
                     <TableCell className="font-medium">{f.evaluatee_name}</TableCell>
@@ -179,7 +208,11 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.pares_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
-                    <TableCell className="text-right font-bold">{fmt(f.final_result)}</TableCell>
+                    <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.goals_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.academic_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.certification_score)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress value={pct} className="flex-1" />
@@ -200,7 +233,7 @@ function ReportsPage() {
                 );
               })}
               {finals?.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

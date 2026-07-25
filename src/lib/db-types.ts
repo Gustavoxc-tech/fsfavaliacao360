@@ -113,3 +113,100 @@ export interface VAssignmentProgress {
   scores_filled: number;
   pct_complete: number;
 }
+
+export interface GoalCategory {
+  id: string;
+  cycle_id: string;
+  name: string;
+  weight: number;
+}
+
+export interface Goal {
+  id: string;
+  evaluatee_id: string;
+  cycle_id: string;
+  category_id: string;
+  description: string;
+  expected_score: number;
+  obtained_score: number | null;
+  evidence: string | null;
+}
+
+export interface AcademicLevel {
+  id: string;
+  order_index: number;
+  name: string;
+  description: string | null;
+  evidence_required: string | null;
+  score: number;
+}
+
+export interface PersonAcademicQualification {
+  id: string;
+  person_id: string;
+  academic_level_id: string;
+  evidence_url: string | null;
+  achieved_date: string | null;
+  is_current: boolean;
+}
+
+export interface CertificationCatalog {
+  id: string;
+  name: string;
+  issuing_entity: string | null;
+  bonus: number;
+}
+
+export interface PersonCertification {
+  id: string;
+  person_id: string;
+  certification_id: string;
+  obtained: boolean;
+  obtained_date: string | null;
+  evidence_url: string | null;
+}
+
+export interface EvaluationWeightConfig {
+  id: string;
+  cycle_id: string;
+  competencies_weight: number;
+  goals_weight: number;
+  academic_weight: number;
+  certification_weight: number;
+}
+
+export interface VGoalCategoryResult {
+  evaluatee_id: string;
+  cycle_id: string;
+  category_id: string;
+  category_name: string;
+  category_weight: number;
+  goals_count: number;
+  goals_scored: number;
+  avg_obtained: number | null;
+  pct_achievement: number | null;
+  weighted_result: number | null;
+}
+
+export interface VGoalFinalResult {
+  evaluatee_id: string;
+  cycle_id: string;
+  total_weighted_pct: number | null;
+  goals_score_0_5: number | null;
+}
+
+export interface VPersonFinalScore {
+  evaluatee_id: string;
+  cycle_id: string;
+  evaluatee_person_id: string;
+  evaluatee_name: string;
+  competencies_score: number | null;
+  goals_score: number | null;
+  academic_score: number | null;
+  certification_score: number | null;
+  competencies_weight: number;
+  goals_weight: number;
+  academic_weight: number;
+  certification_weight: number;
+  overall_final_score: number | null;
+}
