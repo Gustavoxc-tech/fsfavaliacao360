@@ -273,7 +273,7 @@ function GoalsSection({ evaluateeId, cycleId }: { evaluateeId: string; cycleId: 
                 <div className="text-xs text-muted-foreground">Peso: {cat.weight}</div>
               </div>
               <div className="text-xs text-muted-foreground">
-                Alcance: <strong>{result?.pct_achievement != null ? (result.pct_achievement * 100).toFixed(0) + "%" : "—"}</strong>
+                Alcance: <strong>{result?.pct_alcance != null ? (result.pct_alcance * 100).toFixed(0) + "%" : "—"}</strong>
                 {" · "}Ponderado: <strong>{result?.weighted_result != null ? Number(result.weighted_result).toFixed(3) : "—"}</strong>
               </div>
             </div>
