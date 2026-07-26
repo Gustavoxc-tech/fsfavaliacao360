@@ -42,17 +42,22 @@ function EvaluationForm() {
   });
 
   const { data: competencies } = useQuery({
-    queryKey: ["competencies-active"],
+    queryKey: ["competencies-assigned", assignment?.evaluatee_id],
+    enabled: !!assignment?.evaluatee_id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("competencies")
-        .select("*")
-        .eq("is_active", true)
-        .order("display_order");
+        .from("competency_assignments")
+        .select("competencies(*)")
+        .eq("evaluatee_id", assignment!.evaluatee_id);
       if (error) throw error;
-      return data as Competency[];
+      const list = (data ?? [])
+        .map((r: any) => r.competencies as Competency)
+        .filter((c) => c && c.is_active)
+        .sort((a, b) => a.display_order - b.display_order);
+      return list;
     },
   });
+
 
   const { data: existing } = useQuery({
     queryKey: ["scores", assignmentId],
