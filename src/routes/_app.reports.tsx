@@ -128,7 +128,7 @@ function ReportsPage() {
     doc.text(`Avaliação 360° — ${final.evaluatee_name}`, 14, 18);
     doc.setFontSize(10);
     doc.text(`Nota Final Geral: ${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "—"}`, 14, 28);
-    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_score)}  |  Qualif.: ${fmt(o?.academic_score)}  |  Cert.: ${fmt(o?.certification_score)}`, 14, 34);
+    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_final_score)}  |  Qualif.: ${fmt(o?.academic_final_score)}  |  Cert.: ${fmt(o?.certification_final_score)}`, 14, 34);
 
     let y = 46;
     doc.setFontSize(9);
