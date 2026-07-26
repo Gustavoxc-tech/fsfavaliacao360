@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,8 +20,6 @@ export const Route = createFileRoute("/_app/admin/assignments")({
 function AdminAssignments() {
   const qc = useQueryClient();
   const [cycleId, setCycleId] = useState<string | undefined>();
-  const [evaluateeDialogOpen, setEvaluateeDialogOpen] = useState(false);
-  const [evaluateePersonId, setEvaluateePersonId] = useState<string | undefined>();
   const [assignDialog, setAssignDialog] = useState<{ open: boolean; evaluateeId?: string }>({ open: false });
   const [assignForm, setAssignForm] = useState({ evaluator_person_id: "", evaluator_type_id: "" });
 
@@ -49,8 +47,11 @@ function AdminAssignments() {
     },
   });
 
+  // Avaliados deste ciclo: agora definidos na aba Pessoas (switch "Avaliado
+  // neste ciclo"). Esta tela só lê a lista, não cria mais avaliado aqui —
+  // evita ter o mesmo cadastro em dois lugares.
   const { data: evaluatees } = useQuery({
-    queryKey: ["evaluatees", cycleId],
+    queryKey: ["evaluatees-by-cycle", cycleId],
     enabled: !!cycleId,
     queryFn: async () => {
       const { data } = await supabase.from("evaluatees").select("*").eq("cycle_id", cycleId);
@@ -71,27 +72,6 @@ function AdminAssignments() {
 
   const peopleById = useMemo(() => Object.fromEntries((people ?? []).map((p) => [p.id, p])), [people]);
   const typeById = useMemo(() => Object.fromEntries((types ?? []).map((t) => [t.id, t])), [types]);
-
-  const addEvaluatee = useMutation({
-    mutationFn: async () => {
-      if (!cycleId || !evaluateePersonId) return;
-      const person = peopleById[evaluateePersonId];
-      const { error } = await supabase.from("evaluatees").insert({
-        cycle_id: cycleId,
-        person_id: evaluateePersonId,
-        job_title: person?.job_title,
-        area: person?.area,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Avaliado adicionado");
-      setEvaluateeDialogOpen(false);
-      setEvaluateePersonId(undefined);
-      qc.invalidateQueries({ queryKey: ["evaluatees", cycleId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const addAssignment = useMutation({
     mutationFn: async () => {
@@ -140,29 +120,14 @@ function AdminAssignments() {
       {cycleId && (
         <Card>
           <CardContent className="py-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold">Avaliados e suas atribuições</h3>
-              <Dialog open={evaluateeDialogOpen} onOpenChange={setEvaluateeDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Adicionar avaliado</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Adicionar avaliado ao ciclo</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Select value={evaluateePersonId} onValueChange={setEvaluateePersonId}>
-                      <SelectTrigger><SelectValue placeholder="Selecionar pessoa" /></SelectTrigger>
-                      <SelectContent>
-                        {people?.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={() => addEvaluatee.mutate()} disabled={!evaluateePersonId}>Adicionar</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+            <h3 className="font-semibold">Avaliados e suas atribuições</h3>
 
             {evaluatees?.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum avaliado neste ciclo ainda.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum avaliado neste ciclo ainda. Vá em{" "}
+                <Link to="/admin/people" className="underline font-medium">Pessoas</Link>{" "}
+                e ative "Avaliado neste ciclo" para quem deve participar.
+              </p>
             )}
 
             <div className="space-y-4">
