@@ -146,9 +146,10 @@ function CollaboratorResults() {
                   </TableHeader>
                   <TableBody>
                     <SummaryRow label="Competências" score={overall.competencies_score} weight={overall.competencies_weight} />
-                    <SummaryRow label="Metas" score={overall.goals_score} weight={overall.goals_weight} />
-                    <SummaryRow label="Qualificação Acadêmica" score={overall.academic_score} weight={overall.academic_weight} />
-                    <SummaryRow label="Certificações" score={overall.certification_score} weight={overall.certification_weight} />
+                    <SummaryRow label="Metas" score={overall.goals_final_score} weight={overall.goals_weight} />
+                    <SummaryRow label="Qualificação Acadêmica" score={overall.academic_final_score} weight={overall.academic_weight} />
+                    <SummaryRow label="Certificações" score={overall.certification_final_score} weight={overall.certification_weight} />
+
                     <TableRow className="border-t-2">
                       <TableCell className="font-bold">Nota Final Geral</TableCell>
                       <TableCell colSpan={2}></TableCell>

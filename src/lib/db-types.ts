@@ -181,18 +181,15 @@ export interface VGoalCategoryResult {
   category_id: string;
   category_name: string;
   category_weight: number;
-  goals_count: number;
-  goals_scored: number;
   avg_obtained: number | null;
-  pct_achievement: number | null;
+  pct_alcance: number | null;
   weighted_result: number | null;
 }
 
 export interface VGoalFinalResult {
   evaluatee_id: string;
   cycle_id: string;
-  total_weighted_pct: number | null;
-  goals_score_0_5: number | null;
+  goals_final_score: number | null;
 }
 
 export interface VPersonFinalScore {
@@ -201,12 +198,26 @@ export interface VPersonFinalScore {
   evaluatee_person_id: string;
   evaluatee_name: string;
   competencies_score: number | null;
-  goals_score: number | null;
-  academic_score: number | null;
-  certification_score: number | null;
+  goals_final_score: number | null;
+  academic_final_score: number | null;
+  certification_final_score: number | null;
   competencies_weight: number;
   goals_weight: number;
   academic_weight: number;
   certification_weight: number;
   overall_final_score: number | null;
 }
+
+export interface GoalTemplate {
+  id: string;
+  category_id: string;
+  description: string;
+  expected_score: number;
+}
+
+export interface CompetencyAssignment {
+  id: string;
+  evaluatee_id: string;
+  competency_id: string;
+}
+

@@ -91,9 +91,10 @@ function ReportsPage() {
     const summary = [
       `"Resumo","Nota","Peso","Contribuição"`,
       `"Competências","${o?.competencies_score ?? ""}","${o?.competencies_weight ?? ""}","${o && o.competencies_score != null ? Number(o.competencies_score) * Number(o.competencies_weight) : ""}"`,
-      `"Metas","${o?.goals_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_score != null ? Number(o.goals_score) * Number(o.goals_weight) : ""}"`,
-      `"Qualificação","${o?.academic_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_score != null ? Number(o.academic_score) * Number(o.academic_weight) : ""}"`,
-      `"Certificações","${o?.certification_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_score != null ? Number(o.certification_score) * Number(o.certification_weight) : ""}"`,
+      `"Metas","${o?.goals_final_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_final_score != null ? Number(o.goals_final_score) * Number(o.goals_weight) : ""}"`,
+      `"Qualificação","${o?.academic_final_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_final_score != null ? Number(o.academic_final_score) * Number(o.academic_weight) : ""}"`,
+      `"Certificações","${o?.certification_final_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_final_score != null ? Number(o.certification_final_score) * Number(o.certification_weight) : ""}"`,
+
       `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
       "",
     ];
@@ -127,7 +128,7 @@ function ReportsPage() {
     doc.text(`Avaliação 360° — ${final.evaluatee_name}`, 14, 18);
     doc.setFontSize(10);
     doc.text(`Nota Final Geral: ${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "—"}`, 14, 28);
-    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_score)}  |  Qualif.: ${fmt(o?.academic_score)}  |  Cert.: ${fmt(o?.certification_score)}`, 14, 34);
+    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_final_score)}  |  Qualif.: ${fmt(o?.academic_final_score)}  |  Cert.: ${fmt(o?.certification_final_score)}`, 14, 34);
 
     let y = 46;
     doc.setFontSize(9);
@@ -209,9 +210,10 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.goals_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.academic_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.certification_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.goals_final_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.academic_final_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.certification_final_score)}</TableCell>
+
                     <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
