@@ -210,9 +210,10 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.goals_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.academic_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.certification_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.goals_final_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.academic_final_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(o?.certification_final_score)}</TableCell>
+
                     <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
