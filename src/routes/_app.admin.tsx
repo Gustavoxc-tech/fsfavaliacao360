@@ -8,9 +8,9 @@ export const Route = createFileRoute("/_app/admin")({
 
 const tabs = [
   { to: "/admin/cycles", label: "Ciclos" },
-  { to: "/admin/competencies", label: "Competências" },
   { to: "/admin/people", label: "Pessoas" },
   { to: "/admin/assignments", label: "Atribuições" },
+  { to: "/admin/competencies", label: "Competências" },
   { to: "/admin/goals", label: "Metas" },
   { to: "/admin/academic", label: "Qualificação" },
   { to: "/admin/certifications", label: "Certificações" },
