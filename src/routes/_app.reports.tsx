@@ -91,9 +91,10 @@ function ReportsPage() {
     const summary = [
       `"Resumo","Nota","Peso","Contribuição"`,
       `"Competências","${o?.competencies_score ?? ""}","${o?.competencies_weight ?? ""}","${o && o.competencies_score != null ? Number(o.competencies_score) * Number(o.competencies_weight) : ""}"`,
-      `"Metas","${o?.goals_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_score != null ? Number(o.goals_score) * Number(o.goals_weight) : ""}"`,
-      `"Qualificação","${o?.academic_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_score != null ? Number(o.academic_score) * Number(o.academic_weight) : ""}"`,
-      `"Certificações","${o?.certification_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_score != null ? Number(o.certification_score) * Number(o.certification_weight) : ""}"`,
+      `"Metas","${o?.goals_final_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_final_score != null ? Number(o.goals_final_score) * Number(o.goals_weight) : ""}"`,
+      `"Qualificação","${o?.academic_final_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_final_score != null ? Number(o.academic_final_score) * Number(o.academic_weight) : ""}"`,
+      `"Certificações","${o?.certification_final_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_final_score != null ? Number(o.certification_final_score) * Number(o.certification_weight) : ""}"`,
+
       `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
       "",
     ];
