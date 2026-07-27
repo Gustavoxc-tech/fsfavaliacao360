@@ -20,7 +20,10 @@ import {
   Tooltip,
   Legend,
   CartesianGrid,
+  RadialBarChart,
+  RadialBar,
 } from "recharts";
+import { useMemo } from "react";
 import type { VCompetencyResult, VEvaluateeFinalResult, EvaluationCycle, VPersonFinalScore } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/collaborator")({
