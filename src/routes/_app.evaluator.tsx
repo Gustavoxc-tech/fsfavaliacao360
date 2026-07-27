@@ -1,82 +1,93 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import type { VAssignmentProgress } from "@/lib/db-types";
+import type { Person } from "@/lib/db-types";
 
-export const Route = createFileRoute("/_app/evaluator")({
-  component: EvaluatorList,
-});
+interface AuthState {
+  loading: boolean;
+  session: Session | null;
+  user: User | null;
+  person: Person | null;
+  isAdmin: boolean;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
+  refresh: () => Promise<void>;
+  signOut: () => Promise<void>;
+}
 
-function EvaluatorList() {
-  const { person } = useAuth();
+const AuthContext = createContext<AuthState | undefined>(undefined);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["my-assignments", person?.id],
-    enabled: !!person?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("v_assignment_progress")
-        .select("*")
-        .eq("evaluator_person_id", person!.id)
-        .order("status", { ascending: true });
-      if (error) throw error;
-      return data as VAssignmentProgress[];
-    },
-  });
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [person, setPerson] = useState<Person | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+
+  const loadProfile = async (uid: string) => {
+    const [personRes, roleRes] = await Promise.all([
+      supabase.from("people").select("*").eq("auth_user_id", uid).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle(),
+    ]);
+    setPerson((personRes.data as Person) ?? null);
+    setIsAdmin(!!roleRes.data);
+  };
+
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // Link de "recuperar senha" ou "primeiro acesso via convite": o Supabase já
+      // cria uma sessão válida, mas a pessoa ainda precisa DEFINIR a senha antes
+      // de poder navegar pelo app — por isso não tratamos isso como login normal.
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+      }
+      setSession(s);
+      if (s?.user) {
+        setTimeout(() => loadProfile(s.user.id), 0);
+      } else {
+        setPerson(null);
+        setIsAdmin(false);
+      }
+    });
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      setSession(data.session);
+      if (data.session?.user) await loadProfile(data.session.user.id);
+      setLoading(false);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const refresh = async () => {
+    if (session?.user) await loadProfile(session.user.id);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Minhas Avaliações</h1>
-        <p className="text-sm text-muted-foreground">Avaliações atribuídas a você nos ciclos ativos.</p>
-      </div>
-
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-
-      {data && data.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Nenhuma avaliação atribuída a você.
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4">
-        {data?.map((a) => (
-          <Card key={a.assignment_id}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
-              <div>
-                <CardTitle className="text-base">{a.evaluatee_name}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Você como <strong>{a.evaluator_type_label}</strong>
-                </p>
-              </div>
-              <Badge variant={a.status === "completed" ? "default" : a.status === "in_progress" ? "secondary" : "outline"}>
-                {a.status === "completed" ? "Concluída" : a.status === "in_progress" ? "Em andamento" : "Pendente"}
-              </Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>{a.scores_filled} de {a.total_competencies} competências</span>
-                  <span>{a.pct_complete}%</span>
-                </div>
-                <Progress value={a.pct_complete} />
-              </div>
-              <Link to="/evaluator/$assignmentId" params={{ assignmentId: a.assignment_id }}>
-                <Button size="sm" variant={a.status === "completed" ? "outline" : "default"}>
-                  {a.status === "completed" ? "Revisar" : "Avaliar"}
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+    <AuthContext.Provider
+      value={{
+        loading,
+        session,
+        user: session?.user ?? null,
+        person,
+        isAdmin,
+        passwordRecovery,
+        clearPasswordRecovery: () => setPasswordRecovery(false),
+        refresh,
+        signOut,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }
