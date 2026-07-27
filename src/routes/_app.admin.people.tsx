@@ -11,8 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { PersonProfileDrawer } from "@/components/PersonProfileDrawer";
 import type { Person, EvaluationCycle, Evaluatee } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/admin/people")({
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/_app/admin/people")({
 function AdminPeople() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profilePerson, setProfilePerson] = useState<Person | null>(null);
   const [form, setForm] = useState({ full_name: "", email: "", job_title: "", area: "" });
   const [cycleId, setCycleId] = useState<string | undefined>();
 
@@ -175,6 +178,7 @@ function AdminPeople() {
                 <TableHead>Login</TableHead>
                 <TableHead>Admin</TableHead>
                 <TableHead className="text-right">Avaliado neste ciclo</TableHead>
+                <TableHead className="text-right w-[80px]">Perfil</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -210,16 +214,27 @@ function AdminPeople() {
                         onCheckedChange={(checked) => toggleEvaluatee.mutate({ person: p, isEvaluatee: checked })}
                       />
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => { setProfilePerson(p); setProfileOpen(true); }}
+                        aria-label="Ver perfil"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {(!people || people.length === 0) && (
-                <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">Nenhuma pessoa cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Nenhuma pessoa cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      <PersonProfileDrawer person={profilePerson} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }

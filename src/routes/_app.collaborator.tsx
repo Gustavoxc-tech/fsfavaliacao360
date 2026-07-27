@@ -20,7 +20,10 @@ import {
   Tooltip,
   Legend,
   CartesianGrid,
+  RadialBarChart,
+  RadialBar,
 } from "recharts";
+import { useMemo } from "react";
 import type { VCompetencyResult, VEvaluateeFinalResult, EvaluationCycle, VPersonFinalScore } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/collaborator")({
@@ -98,6 +101,22 @@ function CollaboratorResults() {
     nota: r.weighted_result ?? 0,
   }));
 
+  const dimensionData = useMemo(() => {
+    const g: Record<string, { total: number; count: number }> = {};
+    for (const r of byComp ?? []) {
+      if (r.weighted_result == null) continue;
+      if (!g[r.dimension]) g[r.dimension] = { total: 0, count: 0 };
+      g[r.dimension].total += Number(r.weighted_result);
+      g[r.dimension].count += 1;
+    }
+    return Object.entries(g).map(([dimension, x]) => ({
+      dimension,
+      nota: x.count ? x.total / x.count : 0,
+    }));
+  }, [byComp]);
+
+  const radialData = [{ name: "Final", value: overall?.overall_final_score ?? 0, fill: "var(--primary)" }];
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -132,7 +151,55 @@ function CollaboratorResults() {
           </div>
 
           {overall && (
-            <Card>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="card-hover">
+                <CardHeader><CardTitle>Nota Final Geral</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="relative h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadialBarChart innerRadius="70%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
+                        <PolarAngleAxis type="number" domain={[0, 5]} angleAxisId={0} tick={false} />
+                        <RadialBar background={{ fill: "var(--muted)" }} dataKey="value" cornerRadius={10} isAnimationActive animationDuration={900} />
+                      </RadialBarChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="text-center">
+                        <div className="text-4xl font-bold text-primary">{fmt(overall.overall_final_score)}</div>
+                        <div className="text-xs text-muted-foreground">de 5,00</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <MiniStat label="Competências" v={overall.competencies_score} w={overall.competencies_weight} />
+                    <MiniStat label="Metas" v={overall.goals_final_score} w={overall.goals_weight} />
+                    <MiniStat label="Qualificação" v={overall.academic_final_score} w={overall.academic_weight} />
+                    <MiniStat label="Certificação" v={overall.certification_final_score} w={overall.certification_weight} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="card-hover">
+                <CardHeader><CardTitle>Atitudes vs Habilidades</CardTitle></CardHeader>
+                <CardContent style={{ height: 320 }}>
+                  {dimensionData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={dimensionData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="dimension" />
+                        <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+                        <Radar dataKey="nota" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.35} isAnimationActive animationDuration={800} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {overall && (
+            <Card className="card-hover">
               <CardHeader><CardTitle>Resumo Geral Ponderado</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -160,7 +227,7 @@ function CollaboratorResults() {
             </Card>
           )}
 
-          <Card>
+          <Card className="card-hover">
             <CardHeader><CardTitle>Visão por Competência</CardTitle></CardHeader>
             <CardContent style={{ height: 420 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -168,13 +235,13 @@ function CollaboratorResults() {
                   <PolarGrid />
                   <PolarAngleAxis dataKey="competency" tick={{ fontSize: 10 }} />
                   <PolarRadiusAxis angle={90} domain={[0, 5]} />
-                  <Radar name="Nota Ponderada" dataKey="nota" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
+                  <Radar name="Nota Ponderada" dataKey="nota" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.4} isAnimationActive animationDuration={800} />
                 </RadarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-hover">
             <CardHeader><CardTitle>Comparativo por Tipo de Avaliador</CardTitle></CardHeader>
             <CardContent style={{ height: 420 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -184,10 +251,10 @@ function CollaboratorResults() {
                   <YAxis domain={[0, 5]} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="gestor_score" fill="#3b82f6" name="Gestor" />
-                  <Bar dataKey="pares_score" fill="#10b981" name="Pares" />
-                  <Bar dataKey="subordinados_score" fill="#f59e0b" name="Subordinados" />
-                  <Bar dataKey="autoavaliacao_score" fill="#a855f7" name="Auto" />
+                  <Bar dataKey="gestor_score" fill="var(--chart-1)" name="Gestor" />
+                  <Bar dataKey="pares_score" fill="var(--chart-2)" name="Pares" />
+                  <Bar dataKey="subordinados_score" fill="var(--chart-3)" name="Subordinados" />
+                  <Bar dataKey="autoavaliacao_score" fill="var(--chart-4)" name="Auto" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -252,5 +319,14 @@ function SummaryRow({ label, score, weight }: { label: string; score: number | n
       <TableCell className="text-right">{(Number(weight) * 100).toFixed(0)}%</TableCell>
       <TableCell className="text-right">{fmt(contribution)}</TableCell>
     </TableRow>
+  );
+}
+
+function MiniStat({ label, v, w }: { label: string; v: number | null; w: number }) {
+  return (
+    <div className="rounded-md bg-secondary/60 px-3 py-2">
+      <div className="text-[11px] text-muted-foreground">{label} · {(Number(w) * 100).toFixed(0)}%</div>
+      <div className="text-base font-semibold text-foreground">{fmt(v)}</div>
+    </div>
   );
 }

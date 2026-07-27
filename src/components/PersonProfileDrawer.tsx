@@ -1,0 +1,309 @@
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis as PolarAxis2,
+} from "recharts";
+import type {
+  Person,
+  EvaluationCycle,
+  VCompetencyResult,
+  VPersonFinalScore,
+} from "@/lib/db-types";
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+}
+
+function fmt(v: number | null | undefined) {
+  return v == null ? "—" : Number(v).toFixed(2);
+}
+
+export function PersonProfileDrawer({
+  person,
+  open,
+  onOpenChange,
+}: {
+  person: Person | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [cycleId, setCycleId] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!open) setCycleId(undefined);
+  }, [open]);
+
+  const { data: cycles } = useQuery({
+    queryKey: ["profile-cycles", person?.id],
+    enabled: !!person?.id && open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_person_final_score")
+        .select("cycle_id")
+        .eq("evaluatee_person_id", person!.id);
+      const ids = [...new Set((data ?? []).map((r: any) => r.cycle_id))];
+      if (!ids.length) return [];
+      const { data: cs } = await supabase
+        .from("evaluation_cycles")
+        .select("*")
+        .in("id", ids)
+        .order("start_date", { ascending: false });
+      return (cs ?? []) as EvaluationCycle[];
+    },
+  });
+
+  const effective = cycleId ?? cycles?.[0]?.id;
+
+  const { data: overall } = useQuery({
+    queryKey: ["profile-overall", person?.id, effective],
+    enabled: !!person?.id && !!effective,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_person_final_score")
+        .select("*")
+        .eq("evaluatee_person_id", person!.id)
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      return data as VPersonFinalScore | null;
+    },
+  });
+
+  const { data: byComp } = useQuery({
+    queryKey: ["profile-comp", person?.id, effective],
+    enabled: !!person?.id && !!effective,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("v_competency_results")
+        .select("*")
+        .eq("evaluatee_person_id", person!.id)
+        .eq("cycle_id", effective);
+      return (data ?? []) as VCompetencyResult[];
+    },
+  });
+
+  const { data: academic } = useQuery({
+    queryKey: ["profile-academic", person?.id],
+    enabled: !!person?.id && open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("person_academic_qualifications")
+        .select("is_current, academic_levels(name, score)")
+        .eq("person_id", person!.id)
+        .eq("is_current", true);
+      return data ?? [];
+    },
+  });
+
+  const { data: certs } = useQuery({
+    queryKey: ["profile-certs", person?.id],
+    enabled: !!person?.id && open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("person_certifications")
+        .select("obtained, certifications_catalog(name, bonus)")
+        .eq("person_id", person!.id)
+        .eq("obtained", true);
+      return data ?? [];
+    },
+  });
+
+  const dimensionData = useMemo(() => {
+    const groups: Record<string, { total: number; count: number }> = {};
+    for (const r of byComp ?? []) {
+      const v = r.weighted_result;
+      if (v == null) continue;
+      if (!groups[r.dimension]) groups[r.dimension] = { total: 0, count: 0 };
+      groups[r.dimension].total += Number(v);
+      groups[r.dimension].count += 1;
+    }
+    return Object.entries(groups).map(([dimension, g]) => ({
+      dimension,
+      nota: g.count ? g.total / g.count : 0,
+    }));
+  }, [byComp]);
+
+  const finalScore = overall?.overall_final_score ?? null;
+  const radialData = [
+    {
+      name: "Final",
+      value: finalScore ?? 0,
+      fill: "var(--primary)",
+    },
+  ];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Perfil do avaliado</SheetTitle>
+        </SheetHeader>
+
+        {person && (
+          <div className="mt-6 space-y-6 animate-in fade-in-50 duration-200">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center text-xl font-semibold">
+                {initials(person.full_name)}
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{person.full_name}</div>
+                <div className="text-sm text-muted-foreground truncate">
+                  {person.job_title ?? "—"}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {person.area ?? "—"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {(academic ?? []).map((a: any, i) => (
+                <Badge key={`ac-${i}`} variant="secondary">
+                  🎓 {a.academic_levels?.name}
+                </Badge>
+              ))}
+              {(certs ?? []).map((c: any, i) => (
+                <Badge key={`ct-${i}`} variant="outline">
+                  ✓ {c.certifications_catalog?.name}
+                </Badge>
+              ))}
+              {!(academic?.length || certs?.length) && (
+                <span className="text-xs text-muted-foreground">
+                  Sem qualificações ou certificações registradas.
+                </span>
+              )}
+            </div>
+
+            {cycles && cycles.length > 0 ? (
+              <>
+                <Select value={effective} onValueChange={setCycleId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecionar ciclo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cycles.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Nota Final Geral
+                  </div>
+                  <div className="relative h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadialBarChart
+                        innerRadius="70%"
+                        outerRadius="100%"
+                        data={radialData}
+                        startAngle={90}
+                        endAngle={-270}
+                      >
+                        <PolarAxis2
+                          type="number"
+                          domain={[0, 5]}
+                          angleAxisId={0}
+                          tick={false}
+                        />
+                        <RadialBar
+                          background={{ fill: "var(--muted)" }}
+                          dataKey="value"
+                          cornerRadius={8}
+                          isAnimationActive
+                          animationDuration={900}
+                        />
+                      </RadialBarChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-primary">
+                          {fmt(finalScore)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          de 5,00
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {overall && (
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                      <MiniBlock label="Competências" v={overall.competencies_score} />
+                      <MiniBlock label="Metas" v={overall.goals_final_score} />
+                      <MiniBlock label="Qualificação" v={overall.academic_final_score} />
+                      <MiniBlock label="Certificação" v={overall.certification_final_score} />
+                    </div>
+                  )}
+                </div>
+
+                {dimensionData.length > 0 ? (
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Atitudes vs Habilidades
+                    </div>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={dimensionData}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="dimension" />
+                          <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+                          <Radar
+                            dataKey="nota"
+                            stroke="var(--primary)"
+                            fill="var(--primary)"
+                            fillOpacity={0.35}
+                            isAnimationActive
+                            animationDuration={800}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyBlock text="Ainda sem competências avaliadas neste ciclo." />
+                )}
+              </>
+            ) : (
+              <EmptyBlock text="Ainda sem avaliação em nenhum ciclo." />
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function MiniBlock({ label, v }: { label: string; v: number | null }) {
+  return (
+    <div className="rounded-md bg-secondary/60 px-3 py-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-base font-semibold text-foreground">{fmt(v)}</div>
+    </div>
+  );
+}
+
+function EmptyBlock({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+      {text}
+    </div>
+  );
+}
