@@ -214,16 +214,27 @@ function AdminPeople() {
                         onCheckedChange={(checked) => toggleEvaluatee.mutate({ person: p, isEvaluatee: checked })}
                       />
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => { setProfilePerson(p); setProfileOpen(true); }}
+                        aria-label="Ver perfil"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {(!people || people.length === 0) && (
-                <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">Nenhuma pessoa cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Nenhuma pessoa cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      <PersonProfileDrawer person={profilePerson} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
