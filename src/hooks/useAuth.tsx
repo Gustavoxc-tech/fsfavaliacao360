@@ -9,6 +9,8 @@ interface AuthState {
   user: User | null;
   person: Person | null;
   isAdmin: boolean;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [person, setPerson] = useState<Person | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const loadProfile = async (uid: string) => {
     const [personRes, roleRes] = await Promise.all([
@@ -31,7 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // Link de "recuperar senha" ou "primeiro acesso via convite": o Supabase já
+      // cria uma sessão válida, mas a pessoa ainda precisa DEFINIR a senha antes
+      // de poder navegar pelo app — por isso não tratamos isso como login normal.
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+      }
       setSession(s);
       if (s?.user) {
         setTimeout(() => loadProfile(s.user.id), 0);
@@ -60,7 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ loading, session, user: session?.user ?? null, person, isAdmin, refresh, signOut }}
+      value={{
+        loading,
+        session,
+        user: session?.user ?? null,
+        person,
+        isAdmin,
+        passwordRecovery,
+        clearPasswordRecovery: () => setPasswordRecovery(false),
+        refresh,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
