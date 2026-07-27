@@ -16,15 +16,36 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { session, loading } = useAuth();
+  const { session, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/" });
-  }, [loading, session, navigate]);
+    // Não redireciona automaticamente quando a pessoa chegou aqui por um link
+    // de "definir/recuperar senha" — ela precisa antes escolher a nova senha.
+    if (!loading && session && !passwordRecovery) navigate({ to: "/" });
+  }, [loading, session, passwordRecovery, navigate]);
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Senha definida com sucesso!");
+    clearPasswordRecovery();
+    navigate({ to: "/" });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,9 +74,30 @@ function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Avaliação 360°</CardTitle>
-          <CardDescription>Entre com a sua conta corporativa.</CardDescription>
+          <CardDescription>
+            {passwordRecovery ? "Defina sua nova senha para continuar." : "Entre com a sua conta corporativa."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          {passwordRecovery ? (
+            <form onSubmit={handleSetNewPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Nova senha</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? "Salvando..." : "Definir senha e entrar"}
+              </Button>
+            </form>
+          ) : (
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -95,6 +137,7 @@ function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>
