@@ -101,6 +101,22 @@ function CollaboratorResults() {
     nota: r.weighted_result ?? 0,
   }));
 
+  const dimensionData = useMemo(() => {
+    const g: Record<string, { total: number; count: number }> = {};
+    for (const r of byComp ?? []) {
+      if (r.weighted_result == null) continue;
+      if (!g[r.dimension]) g[r.dimension] = { total: 0, count: 0 };
+      g[r.dimension].total += Number(r.weighted_result);
+      g[r.dimension].count += 1;
+    }
+    return Object.entries(g).map(([dimension, x]) => ({
+      dimension,
+      nota: x.count ? x.total / x.count : 0,
+    }));
+  }, [byComp]);
+
+  const radialData = [{ name: "Final", value: overall?.overall_final_score ?? 0, fill: "var(--primary)" }];
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
