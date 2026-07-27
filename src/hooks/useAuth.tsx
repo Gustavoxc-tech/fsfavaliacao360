@@ -1,93 +1,145 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Person } from "@/lib/db-types";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
-interface AuthState {
-  loading: boolean;
-  session: Session | null;
-  user: User | null;
-  person: Person | null;
-  isAdmin: boolean;
-  passwordRecovery: boolean;
-  clearPasswordRecovery: () => void;
-  refresh: () => Promise<void>;
-  signOut: () => Promise<void>;
-}
+export const Route = createFileRoute("/auth")({
+  ssr: false,
+  head: () => ({ meta: [{ title: "Entrar — Avaliação 360°" }] }),
+  component: AuthPage,
+});
 
-const AuthContext = createContext<AuthState | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
-  const [person, setPerson] = useState<Person | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [passwordRecovery, setPasswordRecovery] = useState(false);
-
-  const loadProfile = async (uid: string) => {
-    const [personRes, roleRes] = await Promise.all([
-      supabase.from("people").select("*").eq("auth_user_id", uid).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle(),
-    ]);
-    setPerson((personRes.data as Person) ?? null);
-    setIsAdmin(!!roleRes.data);
-  };
+function AuthPage() {
+  const { session, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      // Link de "recuperar senha" ou "primeiro acesso via convite": o Supabase já
-      // cria uma sessão válida, mas a pessoa ainda precisa DEFINIR a senha antes
-      // de poder navegar pelo app — por isso não tratamos isso como login normal.
-      if (event === "PASSWORD_RECOVERY") {
-        setPasswordRecovery(true);
-      }
-      setSession(s);
-      if (s?.user) {
-        setTimeout(() => loadProfile(s.user.id), 0);
-      } else {
-        setPerson(null);
-        setIsAdmin(false);
-      }
-    });
+    // Não redireciona automaticamente quando a pessoa chegou aqui por um link
+    // de "definir/recuperar senha" — ela precisa antes escolher a nova senha.
+    if (!loading && session && !passwordRecovery) navigate({ to: "/" });
+  }, [loading, session, passwordRecovery, navigate]);
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) await loadProfile(data.session.user.id);
-      setLoading(false);
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  const refresh = async () => {
-    if (session?.user) await loadProfile(session.user.id);
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Senha definida com sucesso!");
+    clearPasswordRecovery();
+    navigate({ to: "/" });
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setSubmitting(false);
+    if (error) toast.error(error.message);
+    else toast.success("Bem-vindo!");
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setSubmitting(false);
+    if (error) toast.error(error.message);
+    else toast.success("Conta criada! Verifique seu email se a confirmação estiver ativa.");
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        loading,
-        session,
-        user: session?.user ?? null,
-        person,
-        isAdmin,
-        passwordRecovery,
-        clearPasswordRecovery: () => setPasswordRecovery(false),
-        refresh,
-        signOut,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Avaliação 360°</CardTitle>
+          <CardDescription>
+            {passwordRecovery ? "Defina sua nova senha para continuar." : "Entre com a sua conta corporativa."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {passwordRecovery ? (
+            <form onSubmit={handleSetNewPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Nova senha</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? "Salvando..." : "Definir senha e entrar"}
+              </Button>
+            </form>
+          ) : (
+          <Tabs defaultValue="login">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Entrar</TabsTrigger>
+              <TabsTrigger value="signup">Criar conta</TabsTrigger>
+            </TabsList>
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? "Entrando..." : "Entrar"}
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="signup">
+              <form onSubmit={handleSignup} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email2">Email</Label>
+                  <Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">
+                    Use o mesmo email cadastrado pelo admin em <code>people</code> para vincular automaticamente.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password2">Senha</Label>
+                  <Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? "Criando..." : "Criar conta"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
 }
