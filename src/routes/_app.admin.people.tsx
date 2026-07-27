@@ -11,8 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { PersonProfileDrawer } from "@/components/PersonProfileDrawer";
 import type { Person, EvaluationCycle, Evaluatee } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/admin/people")({
