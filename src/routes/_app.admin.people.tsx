@@ -178,6 +178,7 @@ function AdminPeople() {
                 <TableHead>Login</TableHead>
                 <TableHead>Admin</TableHead>
                 <TableHead className="text-right">Avaliado neste ciclo</TableHead>
+                <TableHead className="text-right w-[80px]">Perfil</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
