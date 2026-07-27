@@ -23,6 +23,8 @@ export const Route = createFileRoute("/_app/admin/people")({
 function AdminPeople() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profilePerson, setProfilePerson] = useState<Person | null>(null);
   const [form, setForm] = useState({ full_name: "", email: "", job_title: "", area: "" });
   const [cycleId, setCycleId] = useState<string | undefined>();
 
