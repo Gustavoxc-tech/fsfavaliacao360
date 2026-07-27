@@ -94,7 +94,6 @@ function ReportsPage() {
       `"Metas","${o?.goals_final_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_final_score != null ? Number(o.goals_final_score) * Number(o.goals_weight) : ""}"`,
       `"Qualificação","${o?.academic_final_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_final_score != null ? Number(o.academic_final_score) * Number(o.academic_weight) : ""}"`,
       `"Certificações","${o?.certification_final_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_final_score != null ? Number(o.certification_final_score) * Number(o.certification_weight) : ""}"`,
-
       `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
       "",
     ];
@@ -213,7 +212,6 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(o?.goals_final_score)}</TableCell>
                     <TableCell className="text-right">{fmt(o?.academic_final_score)}</TableCell>
                     <TableCell className="text-right">{fmt(o?.certification_final_score)}</TableCell>
-
                     <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
