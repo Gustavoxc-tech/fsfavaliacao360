@@ -220,3 +220,4 @@ export interface VPersonFinalScore {
   academic_weight: number;
   certification_weight: number;
   overall_final_score: number | null;
+}
