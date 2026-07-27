@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -12,9 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
-import type { Competency } from "@/lib/db-types";
+import type { Competency, EvaluationCycle, Evaluatee, Person, CompetencyAssignment } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/admin/competencies")({
   component: AdminCompetencies,
@@ -38,6 +39,9 @@ function AdminCompetencies() {
   const [form, setForm] = useState(emptyForm);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const [cycleId, setCycleId] = useState<string | undefined>();
+  const [evaluateeId, setEvaluateeId] = useState<string | undefined>();
+
   const { data } = useQuery({
     queryKey: ["all-competencies"],
     queryFn: async () => {
@@ -45,6 +49,76 @@ function AdminCompetencies() {
       if (error) throw error;
       return data as Competency[];
     },
+  });
+
+  const { data: cycles } = useQuery({
+    queryKey: ["cycles"],
+    queryFn: async () => {
+      const { data } = await supabase.from("evaluation_cycles").select("*").order("start_date", { ascending: false });
+      return (data ?? []) as EvaluationCycle[];
+    },
+  });
+
+  useEffect(() => {
+    if (!cycleId && cycles && cycles.length) {
+      const openCycle = cycles.find((c) => c.status === "open");
+      setCycleId(openCycle?.id ?? cycles[0].id);
+    }
+  }, [cycles, cycleId]);
+
+  const { data: evaluatees } = useQuery({
+    queryKey: ["evaluatees-cycle", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data } = await supabase.from("evaluatees").select("*, people(full_name)").eq("cycle_id", cycleId);
+      return (data ?? []) as (Evaluatee & { people: Pick<Person, "full_name"> })[];
+    },
+  });
+
+  const { data: assignments } = useQuery({
+    queryKey: ["competency-assignments", evaluateeId],
+    enabled: !!evaluateeId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("competency_assignments").select("*").eq("evaluatee_id", evaluateeId);
+      if (error) throw error;
+      return data as CompetencyAssignment[];
+    },
+  });
+
+  const assignedCompetencyIds = useMemo(
+    () => new Set((assignments ?? []).map((a) => a.competency_id)),
+    [assignments]
+  );
+
+  const toggleAssignment = useMutation({
+    mutationFn: async ({ competencyId, assign }: { competencyId: string; assign: boolean }) => {
+      if (!evaluateeId) return;
+      if (assign) {
+        const { error } = await supabase.from("competency_assignments").insert({ evaluatee_id: evaluateeId, competency_id: competencyId });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("competency_assignments").delete().eq("evaluatee_id", evaluateeId).eq("competency_id", competencyId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["competency-assignments", evaluateeId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setAllInCategory = useMutation({
+    mutationFn: async ({ competencyIds, assign }: { competencyIds: string[]; assign: boolean }) => {
+      if (!evaluateeId) return;
+      if (assign) {
+        const rows = competencyIds.map((id) => ({ evaluatee_id: evaluateeId, competency_id: id }));
+        const { error } = await supabase.from("competency_assignments").upsert(rows, { onConflict: "evaluatee_id,competency_id" });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("competency_assignments").delete().eq("evaluatee_id", evaluateeId).in("competency_id", competencyIds);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["competency-assignments", evaluateeId] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const toggle = useMutation({
@@ -106,6 +180,7 @@ function AdminCompetencies() {
   };
 
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <div>
@@ -235,5 +310,97 @@ function AdminCompetencies() {
         </Accordion>
       </CardContent>
     </Card>
+
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 gap-4">
+        <div>
+          <CardTitle className="text-base">Competências por avaliado</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Por padrão todo avaliado recebe todas as competências ativas. Use aqui para
+            personalizar: desmarque o que não se aplica a essa pessoa, ou marque algo extra.
+          </p>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Label className="text-sm whitespace-nowrap">Ciclo:</Label>
+          <Select value={cycleId} onValueChange={(v) => { setCycleId(v); setEvaluateeId(undefined); }}>
+            <SelectTrigger className="w-[260px]"><SelectValue placeholder="Selecionar ciclo" /></SelectTrigger>
+            <SelectContent>
+              {cycles?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Label className="text-sm whitespace-nowrap ml-2">Avaliado:</Label>
+          <Select value={evaluateeId} onValueChange={setEvaluateeId} disabled={!cycleId}>
+            <SelectTrigger className="w-[260px]"><SelectValue placeholder="Selecionar avaliado" /></SelectTrigger>
+            <SelectContent>
+              {evaluatees?.map((e) => <SelectItem key={e.id} value={e.id}>{e.people?.full_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {!evaluateeId && (
+          <p className="text-sm text-muted-foreground text-center py-6">Selecione um ciclo e um avaliado para ver e ajustar as competências dele.</p>
+        )}
+
+        {evaluateeId && (
+          <Accordion type="multiple" className="w-full">
+            {[...grouped.entries()].map(([dimension, categories]) => (
+              <AccordionItem key={dimension} value={dimension}>
+                <AccordionTrigger className="text-base">
+                  <Badge variant="outline">{dimension}</Badge>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <Accordion type="multiple" className="w-full pl-2">
+                    {[...categories.entries()].map(([category, comps]) => {
+                      const activeComps = comps.filter((c) => c.is_active);
+                      const allChecked = activeComps.length > 0 && activeComps.every((c) => assignedCompetencyIds.has(c.id));
+                      return (
+                        <AccordionItem key={category} value={category}>
+                          <AccordionTrigger className="text-sm py-3">
+                            <span className="flex items-center gap-2">
+                              <span className="font-medium">{category}</span>
+                              <span className="text-muted-foreground text-xs font-normal">
+                                {activeComps.filter((c) => assignedCompetencyIds.has(c.id)).length}/{activeComps.length} atribuídas
+                              </span>
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pl-2 space-y-1">
+                              <button
+                                type="button"
+                                className="text-xs text-primary underline mb-1"
+                                onClick={() =>
+                                  setAllInCategory.mutate({ competencyIds: activeComps.map((c) => c.id), assign: !allChecked })
+                                }
+                              >
+                                {allChecked ? "Desmarcar todas desta categoria" : "Marcar todas desta categoria"}
+                              </button>
+                              {activeComps.map((c) => (
+                                <label key={c.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded hover:bg-accent/50 cursor-pointer">
+                                  <Checkbox
+                                    checked={assignedCompetencyIds.has(c.id)}
+                                    onCheckedChange={(checked) => toggleAssignment.mutate({ competencyId: c.id, assign: !!checked })}
+                                  />
+                                  <span>{c.name}</span>
+                                </label>
+                              ))}
+                              {activeComps.length === 0 && (
+                                <p className="text-xs text-muted-foreground">Nenhuma competência ativa nesta categoria.</p>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        )}
+      </CardContent>
+    </Card>
+    </div>
   );
 }
