@@ -321,3 +321,12 @@ function SummaryRow({ label, score, weight }: { label: string; score: number | n
     </TableRow>
   );
 }
+
+function MiniStat({ label, v, w }: { label: string; v: number | null; w: number }) {
+  return (
+    <div className="rounded-md bg-secondary/60 px-3 py-2">
+      <div className="text-[11px] text-muted-foreground">{label} · {(Number(w) * 100).toFixed(0)}%</div>
+      <div className="text-base font-semibold text-foreground">{fmt(v)}</div>
+    </div>
+  );
+}
