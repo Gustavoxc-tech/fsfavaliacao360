@@ -50,10 +50,21 @@ function EvaluationForm() {
         .select("competencies(*)")
         .eq("evaluatee_id", assignment!.evaluatee_id);
       if (error) throw error;
-      const list = (data ?? [])
+      let list = (data ?? [])
         .map((row: any) => row.competencies as Competency)
         .filter((c: Competency | null): c is Competency => !!c && c.is_active)
         .sort((a, b) => a.display_order - b.display_order);
+      // Fallback: avaliado sem registros em competency_assignments (ex.: criado
+      // antes do trigger). Usa todas as competências ativas para não ficar em branco.
+      if (list.length === 0) {
+        const { data: all, error: err2 } = await supabase
+          .from("competencies")
+          .select("*")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+        if (err2) throw err2;
+        list = (all ?? []) as Competency[];
+      }
       return list;
     },
   });
