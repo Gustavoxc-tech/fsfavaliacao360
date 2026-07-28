@@ -87,12 +87,20 @@ function AdminCertifications() {
   const togglePersonCert = useMutation({
     mutationFn: async ({ certId, obtained }: { certId: string; obtained: boolean }) => {
       if (!personId) return;
-      const { error } = await supabase.from("person_certifications").upsert(
-        { person_id: personId, certification_id: certId, obtained,
-          obtained_date: obtained ? new Date().toISOString().slice(0, 10) : null },
-        { onConflict: "person_id,certification_id" }
-      );
-      if (error) throw error;
+      const existing = personCerts?.find((p) => p.certification_id === certId);
+      const obtained_date = obtained ? new Date().toISOString().slice(0, 10) : null;
+      if (existing) {
+        const { error } = await supabase
+          .from("person_certifications")
+          .update({ obtained, obtained_date })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("person_certifications")
+          .insert({ person_id: personId, certification_id: certId, obtained, obtained_date });
+        if (error) throw error;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["person_certifications", personId] }),
     onError: (e: Error) => toast.error(e.message),
