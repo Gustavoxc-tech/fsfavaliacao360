@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, ClipboardList, BarChart3, Settings, FileText } from "lucide-react";
+import { PersonAvatar } from "@/components/PersonAvatar";
 import type { ReactNode } from "react";
 
 interface NavItem {
@@ -26,11 +27,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
         <div className="p-6 border-b border-sidebar-border">
-          <h1 className="text-lg font-bold">Avaliação 360°</h1>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center font-bold text-sm">
+              PZ
+            </div>
+            <div>
+              <h1 className="text-base font-bold leading-tight">PeopleZenith</h1>
+              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Desenvolvimento contínuo</p>
+            </div>
+          </div>
           {person && (
-            <div className="mt-3 text-sm">
-              <div className="font-medium truncate">{person.full_name}</div>
-              <div className="text-xs text-sidebar-foreground/60 truncate">{person.job_title ?? "—"}</div>
+            <div className="mt-4 flex items-center gap-3">
+              <PersonAvatar name={person.full_name} url={(person as any).avatar_url} size="md" />
+              <div className="min-w-0 text-sm">
+                <div className="font-medium truncate">{person.full_name}</div>
+                <div className="text-xs text-sidebar-foreground/60 truncate">{person.job_title ?? "—"}</div>
+              </div>
             </div>
           )}
         </div>

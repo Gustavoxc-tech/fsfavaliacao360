@@ -5,17 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * PeopleZenith design system
+ * Primary: Azul Safira #004080
+ * Action:  Verde Menta #00CC99
+ * BG:      Cinza grafite clarinho #F5F7FA
+ * Cards:   Branco puro
+ * "Atenção" (baixo desempenho) usa laranja/âmbar, nunca vermelho.
  */
 
 @theme inline {
@@ -42,6 +37,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -62,78 +61,82 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: #F6FAFC;
-  --foreground: #0A2E38;
+  --radius: 0.75rem;
+  --background: #F5F7FA;
+  --foreground: #0B1B33;
   --card: #FFFFFF;
-  --card-foreground: #0A2E38;
+  --card-foreground: #0B1B33;
   --popover: #FFFFFF;
-  --popover-foreground: #0A2E38;
-  --primary: #0E3A45;
+  --popover-foreground: #0B1B33;
+  --primary: #004080;
   --primary-foreground: #FFFFFF;
-  --secondary: #DCEEF5;
-  --secondary-foreground: #0E3A45;
-  --muted: #EAF3F7;
-  --muted-foreground: #4A6B75;
-  --accent: #DCEEF5;
-  --accent-foreground: #0E3A45;
-  --destructive: #C0392B;
+  --secondary: #E6F0FA;
+  --secondary-foreground: #004080;
+  --muted: #EEF2F7;
+  --muted-foreground: #5B6B80;
+  --accent: #E6FBF4;
+  --accent-foreground: #007A5C;
+  --destructive: #F59E0B;
   --destructive-foreground: #FFFFFF;
-  --success: #2E8B6B;
+  --success: #00CC99;
   --success-foreground: #FFFFFF;
-  --border: #C9DEE6;
-  --input: #C9DEE6;
-  --ring: #4E8A99;
-  --chart-1: #0E3A45;
-  --chart-2: #2E6E7E;
-  --chart-3: #4E8A99;
-  --chart-4: #86B6C4;
-  --chart-5: #DCEEF5;
-  --sidebar: #0A2E38;
-  --sidebar-foreground: #EAF6FA;
-  --sidebar-primary: #2E6E7E;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #123E4A;
-  --sidebar-accent-foreground: #DCEEF5;
-  --sidebar-border: #123E4A;
-  --sidebar-ring: #4E8A99;
+  --warning: #F97316;
+  --warning-foreground: #FFFFFF;
+  --border: #D9E1EC;
+  --input: #D9E1EC;
+  --ring: #004080;
+  --chart-1: #004080;
+  --chart-2: #2E6DBF;
+  --chart-3: #4EA8E0;
+  --chart-4: #00CC99;
+  --chart-5: #007A5C;
+  --sidebar: #0B1B33;
+  --sidebar-foreground: #EAF1FB;
+  --sidebar-primary: #00CC99;
+  --sidebar-primary-foreground: #062028;
+  --sidebar-accent: #12294A;
+  --sidebar-accent-foreground: #E6F0FA;
+  --sidebar-border: #12294A;
+  --sidebar-ring: #00CC99;
 }
 
 .dark {
-  --background: #061A20;
-  --foreground: #EAF6FA;
-  --card: #0E2A32;
-  --card-foreground: #EAF6FA;
-  --popover: #0E2A32;
-  --popover-foreground: #EAF6FA;
-  --primary: #86B6C4;
-  --primary-foreground: #061A20;
-  --secondary: #123E4A;
-  --secondary-foreground: #DCEEF5;
-  --muted: #123E4A;
-  --muted-foreground: #86B6C4;
-  --accent: #123E4A;
-  --accent-foreground: #DCEEF5;
-  --destructive: #E06C5C;
+  --background: #061024;
+  --foreground: #EAF1FB;
+  --card: #0F1E39;
+  --card-foreground: #EAF1FB;
+  --popover: #0F1E39;
+  --popover-foreground: #EAF1FB;
+  --primary: #4EA8E0;
+  --primary-foreground: #061024;
+  --secondary: #12294A;
+  --secondary-foreground: #E6F0FA;
+  --muted: #12294A;
+  --muted-foreground: #9AB2CC;
+  --accent: #0F3D30;
+  --accent-foreground: #7FF0CC;
+  --destructive: #F59E0B;
   --destructive-foreground: #FFFFFF;
-  --success: #57C4A2;
-  --success-foreground: #061A20;
-  --border: rgba(220, 238, 245, 0.12);
-  --input: rgba(220, 238, 245, 0.16);
-  --ring: #4E8A99;
-  --chart-1: #86B6C4;
-  --chart-2: #4E8A99;
-  --chart-3: #DCEEF5;
-  --chart-4: #2E6E7E;
-  --chart-5: #57C4A2;
-  --sidebar: #04141A;
-  --sidebar-foreground: #EAF6FA;
-  --sidebar-primary: #4E8A99;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #0E2A32;
-  --sidebar-accent-foreground: #DCEEF5;
-  --sidebar-border: #0E2A32;
-  --sidebar-ring: #4E8A99;
+  --success: #00CC99;
+  --success-foreground: #062028;
+  --warning: #F97316;
+  --warning-foreground: #FFFFFF;
+  --border: rgba(220, 234, 255, 0.12);
+  --input: rgba(220, 234, 255, 0.16);
+  --ring: #4EA8E0;
+  --chart-1: #4EA8E0;
+  --chart-2: #2E6DBF;
+  --chart-3: #004080;
+  --chart-4: #00CC99;
+  --chart-5: #7FF0CC;
+  --sidebar: #04091A;
+  --sidebar-foreground: #EAF1FB;
+  --sidebar-primary: #00CC99;
+  --sidebar-primary-foreground: #062028;
+  --sidebar-accent: #0F1E39;
+  --sidebar-accent-foreground: #E6F0FA;
+  --sidebar-border: #0F1E39;
+  --sidebar-ring: #00CC99;
 }
 
 @layer base {
@@ -153,5 +156,9 @@
     transform: translateY(-2px);
     box-shadow: 0 12px 28px -12px color-mix(in oklab, var(--primary) 30%, transparent);
   }
-}
 
+  /* Barra de progresso com gradiente safira -> menta */
+  .progress-gradient {
+    background-image: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+  }
+}

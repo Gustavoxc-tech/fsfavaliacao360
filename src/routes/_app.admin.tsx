@@ -10,6 +10,7 @@ const tabs = [
   { to: "/admin/cycles", label: "Ciclos" },
   { to: "/admin/people", label: "Pessoas" },
   { to: "/admin/assignments", label: "Atribuições" },
+  { to: "/admin/pending", label: "Avaliações pendentes" },
   { to: "/admin/competencies", label: "Competências" },
   { to: "/admin/goals", label: "Metas" },
   { to: "/admin/academic", label: "Qualificação" },

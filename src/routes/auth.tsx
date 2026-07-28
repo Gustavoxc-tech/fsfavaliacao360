@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Entrar — Avaliação 360°" }] }),
+  head: () => ({ meta: [{ title: "Entrar — PeopleZenith" }] }),
   component: AuthPage,
 });
 
@@ -73,7 +73,7 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Avaliação 360°</CardTitle>
+          <CardTitle>PeopleZenith</CardTitle>
           <CardDescription>
             {passwordRecovery ? "Defina sua nova senha para continuar." : "Entre com a sua conta corporativa."}
           </CardDescription>

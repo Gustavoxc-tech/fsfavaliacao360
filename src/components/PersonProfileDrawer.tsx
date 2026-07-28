@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PersonAvatar } from "@/components/PersonAvatar";
+import { Camera } from "lucide-react";
+import { toast } from "sonner";
 import {
   Radar,
   RadarChart,
@@ -21,15 +25,6 @@ import type {
   VCompetencyResult,
   VPersonFinalScore,
 } from "@/lib/db-types";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
 
 function fmt(v: number | null | undefined) {
   return v == null ? "—" : Number(v).toFixed(2);
@@ -148,6 +143,38 @@ export function PersonProfileDrawer({
     },
   ];
 
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadAvatar = async (file: File) => {
+    if (!person) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${person.id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { error: upErr } = await supabase
+        .from("people")
+        .update({ avatar_url: pub.publicUrl })
+        .eq("id", person.id);
+      if (upErr) throw upErr;
+      toast.success("Foto atualizada");
+      qc.invalidateQueries({ queryKey: ["all-people"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao enviar imagem");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto">
@@ -158,8 +185,28 @@ export function PersonProfileDrawer({
         {person && (
           <div className="mt-6 space-y-6 animate-in fade-in-50 duration-200">
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center text-xl font-semibold">
-                {initials(person.full_name)}
+              <div className="relative">
+                <PersonAvatar name={person.full_name} url={person.avatar_url} size="xl" />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-primary-foreground grid place-items-center shadow hover:bg-primary/90 transition"
+                  aria-label="Trocar foto"
+                  disabled={uploading}
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadAvatar(f);
+                    e.target.value = "";
+                  }}
+                />
               </div>
               <div className="min-w-0">
                 <div className="font-semibold truncate">{person.full_name}</div>
@@ -167,7 +214,7 @@ export function PersonProfileDrawer({
                   {person.job_title ?? "—"}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {person.area ?? "—"}
+                  {person.diretoria ?? "—"} {person.area ? `• ${person.area}` : ""}
                 </div>
               </div>
             </div>

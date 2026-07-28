@@ -1,59 +1,51 @@
-# Expansão Evoluir 360 — Metas, Acadêmico e Certificações
+## PeopleZenith — Reformulação completa
 
-## 1. SQL a rodar no Supabase (entrego em bloco único)
+Vou entregar em 5 blocos. Nenhuma query, RLS ou cálculo de score muda.
 
-Como o Supabase é seu (externo), vou gerar um `.sql` para você colar no SQL Editor. Não posso rodar daqui.
+### 1. Marca e paleta
+- Renomear "Avaliação 360°" → **PeopleZenith** em `AppShell.tsx`, `__root.tsx` (title/meta), `auth.tsx` e `_app.index.tsx`.
+- Nova paleta em `src/styles.css` (light + dark, mesmos nomes de variável):
+  - `--primary` #004080 (Azul Safira)
+  - `--success` / accent de ação #00CC99 (Verde Menta)
+  - `--background` #F5F7FA / `--card` #FFFFFF
+  - `--destructive` trocado por laranja/âmbar (#F59E0B / #F97316) para faixas "atenção"
+  - `--chart-1..5` variações safira→menta
+  - Sidebar em safira escuro
+- Gradiente de progresso safira→menta como utility CSS.
 
-### Novas tabelas (RLS habilitada, GRANTs para authenticated; padrão de policies igual ao existente)
-- `goal_categories(id, cycle_id fk evaluation_cycles, name, weight numeric)` — soma por ciclo validada na UI + CHECK opcional.
-- `goals(id, evaluatee_id, cycle_id, category_id, description, expected_score default 5, obtained_score, evidence)`
-- `academic_levels(id, order_index, name, description, evidence_required text, score numeric)`
-- `person_academic_qualifications(id, person_id, academic_level_id, evidence_url, achieved_date, is_current bool)`
-- `certifications_catalog(id, name, issuing_entity, bonus numeric)`
-- `person_certifications(id, person_id, certification_id, obtained bool, obtained_date, evidence_url)`
-- `evaluation_weight_config(id, cycle_id unique, competencies_weight 0.60, goals_weight 0.30, academic_weight 0.05, certification_weight 0.05)`
+### 2. Fluxo de avaliação em abas sequenciais
+Reestruturar `_app.evaluator.$assignmentId.tsx`:
+- Componente `Tabs` (shadcn) com 4 passos, abre em "Avaliação 360°".
+- **Aba 1 — Avaliação 360°**: só competências (Atitudes+Habilidades). Botão "Salvar e ir para Metas".
+- **Aba 2 — Metas**: seção atual de metas (só gestor edita; para outros tipos, exibir aviso "Somente gestor avalia metas" e liberar avançar). Botão "Salvar e ir para Qualificações".
+- **Aba 3 — Qualificações** (read-only): lista `person_academic_qualifications` do avaliado com nível/evidências. Botão "Ir para Certificações".
+- **Aba 4 — Certificações** (read-only): lista `person_certifications` obtidas. Botão "Concluir Avaliação" → marca `evaluation_assignments.status = 'completed'` e `submitted_at = now()`.
 
-### Views
-- `v_goal_category_results` — por avaliado/ciclo/categoria: avg(obtained), % alcance vs expected, resultado ponderado = avg_pct × category.weight.
-- `v_goal_final_results` — soma dos ponderados por avaliado/ciclo (0–5 renormalizado).
-- `v_academic_results` — max(score) do nível atual por pessoa.
-- `v_certification_results` — sum(bonus) das obtidas por pessoa.
-- `v_person_final_score` — junta `v_evaluatee_final_results` + metas + acadêmico + certificação × pesos de `evaluation_weight_config` (renormaliza se algum bloco não existir), retorna `overall_final_score`.
+### 3. Diretoria + hierarquia em Admin > Pessoas
+- Migration: adicionar `people.diretoria` (enum) com valores fixos: `Diretoria de Benefícios`, `Diretoria de Finanças`, `Superintendência`. Backfill automático baseado em `area`:
+  - `Gerência de Benefícios` → Diretoria de Benefícios
+  - `Gerência de Finanças` → Diretoria de Finanças
+  - `Administração e Tecnologia`, `Contabilidade e Orçamento`, `Secretaria` → Superintendência
+- UI: agrupar em cards colapsáveis por Diretoria → subgrupos por Gerência (`area`). Filtro no topo por Diretoria.
+- Form de criação/edição de pessoa inclui select de Diretoria.
 
-### RLS (mesmo padrão)
-- Admin: full via `has_role(auth.uid(),'admin')`.
-- Colaborador: SELECT em suas próprias linhas (`person_id = auth.uid via people`).
-- Escrita: admin. Exceção: `goals.obtained_score` — gestor da atribuição pode UPDATE (via policy checando existência de `evaluation_assignments` do tipo gestor para aquele avaliado no ciclo).
+### 4. Avatares
+- Migration: coluna `people.avatar_url text`.
+- Criar bucket público `avatars` via `supabase--storage_create_bucket` + policies.
+- Botão de upload na linha de pessoa (Admin > Pessoas) e no drawer. Usa Supabase Storage; grava URL pública.
+- Componente `PersonAvatar` reutilizável: mostra foto se existir, senão iniciais (padrão atual).
+- Aplicar em: drawer, cards de "Avaliações Pendentes", tabela de pessoas.
 
-## 2. Frontend
+### 5. Avaliações Pendentes (Admin) + refresh do drawer
+- Nova rota `_app.admin.pending.tsx` (nova aba em Admin): grid de cards arredondados, um por assignment não-completo do ciclo aberto. Cada card: avatar do avaliado, nome, cargo/gerência, avaliador, tipo, barra de progresso com gradiente safira→menta (`pct_complete` da view `v_assignment_progress`).
+- `PersonProfileDrawer`: atualizar cores para nova paleta, usar `PersonAvatar` (foto → iniciais fallback). Mantém dados, badges, donuts de metas e radar Atitudes×Habilidades.
 
-### Novas rotas admin
-- `src/routes/_app.admin.goals.tsx` — categorias por ciclo (peso, validação soma=100%) + metas por avaliado.
-- `src/routes/_app.admin.academic.tsx` — CRUD `academic_levels` + atribuição de nível atual por pessoa.
-- `src/routes/_app.admin.certifications.tsx` — CRUD `certifications_catalog` + marcação por pessoa.
-- Atualizar tabs em `_app.admin.tsx` com Metas / Qualificação / Certificações.
+### Detalhes técnicos
+- Migrations SQL: `ALTER TABLE people ADD COLUMN diretoria text` + CHECK; `ADD COLUMN avatar_url text`; UPDATE de backfill.
+- Storage: bucket `avatars` público, policy insert/update por owner autenticado; read público.
+- Sem alterar views, tipos de avaliador, cálculos de score ou RLS existentes.
+- Todos os componentes usam tokens semânticos (nada de hex hardcoded em JSX).
 
-### Tela de avaliação (`_app.evaluator.$assignmentId.tsx`)
-- Nova seção "Metas" (só visível para avaliadores do tipo gestor) listando metas do avaliado por categoria, input de `obtained_score`, mostrando % alcance e ponderado da categoria. Auto-save (upsert) igual ao padrão de scores.
-
-### "Meus Resultados" (`_app.collaborator.tsx`)
-- Card resumo 4 blocos (Competências / Metas / Acadêmico / Certificação) com nota, peso, resultado; linha final "Nota Final Geral" da `v_person_final_score`. Mantém gráficos existentes.
-
-### "Relatórios" (`_app.reports.tsx`)
-- Adiciona colunas: Metas | Qualificação | Certificação | Nota Final Geral, lidas de `v_person_final_score`.
-- CSV/PDF exports incluem novas colunas.
-
-### Types
-- Estender `src/lib/db-types.ts` com novas interfaces + views.
-
-## 3. Ordem de entrega
-1. Gerar `.sql` completo (tabelas + views + RLS + grants).
-2. Enquanto você aplica, eu implemento todos os arquivos frontend.
-3. Ao confirmar aplicação, valido build.
-
-## Detalhes técnicos
-- Todos os cálculos (ponderações, % alcance, renormalização) vivem em SQL/views — frontend só consome.
-- Estilo visual mantido (sidebar escura, cards, badges, Tailwind tokens atuais).
-- Nenhuma alteração destrutiva nas telas atuais.
-
-Confirma para eu gerar o `.sql` e começar a implementação em paralelo?
+### Fora de escopo
+- Nenhuma mudança em cálculo de pesos, views ou lógica de RLS.
+- Nada muda em Colaborador > "Meus Resultados" além da nova paleta herdada.
