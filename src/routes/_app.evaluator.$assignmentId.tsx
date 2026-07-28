@@ -30,7 +30,13 @@ function EvaluationForm() {
   const { assignmentId } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<TabKey>("competencies");
+  const [tab, setTabRaw] = useState<TabKey>("competencies");
+  const tabOrder: TabKey[] = ["competencies", "goals", "academic", "certifications"];
+  const [visitedMax, setVisitedMax] = useState(0);
+  const setTab = (t: TabKey) => {
+    setTabRaw(t);
+    setVisitedMax((m) => Math.max(m, tabOrder.indexOf(t)));
+  };
 
   const { data: assignment } = useQuery({
     queryKey: ["assignment", assignmentId],
@@ -135,6 +141,15 @@ function EvaluationForm() {
   const pct = total ? Math.round((100 * filled) / total) : 0;
   const compsComplete = total > 0 && filled >= total;
 
+  // Progresso por etapas do fluxo (não apenas da aba de competências)
+  const stepsDone = [
+    compsComplete, // etapa 1: Avaliação 360°
+    visitedMax >= 1, // etapa 2: Metas
+    visitedMax >= 2, // etapa 3: Qualificações
+    assignment?.status === "completed", // etapa 4: Certificações + conclusão
+  ].filter(Boolean).length;
+  const stepPct = Math.round((stepsDone / 4) * 100);
+
   const completeMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -181,13 +196,13 @@ function EvaluationForm() {
       <Card className="sticky top-4 z-10 card-hover">
         <CardContent className="py-4">
           <div className="flex justify-between text-sm mb-1">
-            <span>Progresso 360°</span>
-            <span>{filled} de {total} competências ({pct}%)</span>
+            <span>Progresso da Avaliação</span>
+            <span>{stepsDone} de 4 etapas ({stepPct}%)</span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div
               className="h-full rounded-full progress-gradient transition-[width] duration-500"
-              style={{ width: `${pct}%` }}
+              style={{ width: `${stepPct}%` }}
             />
           </div>
         </CardContent>
