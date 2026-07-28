@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_app/evaluator")({
 
 function EvaluatorList() {
   const { person } = useAuth();
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-assignments", person?.id],
@@ -68,10 +69,16 @@ function EvaluatorList() {
                 </div>
                 <Progress value={a.pct_complete} />
               </div>
-              <Button asChild size="sm" variant={a.status === "completed" ? "outline" : "default"}>
-                <Link to="/evaluator/$assignmentId" params={{ assignmentId: a.assignment_id }}>
-                  {a.status === "completed" ? "Revisar" : "Avaliar"}
-                </Link>
+              <Button
+                type="button"
+                size="sm"
+                variant={a.status === "completed" ? "outline" : "default"}
+                onClick={() => {
+                  console.log("[debug] clique em Avaliar", a.assignment_id);
+                  navigate({ to: "/evaluator/$assignmentId", params: { assignmentId: a.assignment_id } });
+                }}
+              >
+                {a.status === "completed" ? "Revisar" : "Avaliar"}
               </Button>
             </CardContent>
           </Card>
