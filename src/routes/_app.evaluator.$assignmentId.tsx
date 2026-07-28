@@ -131,6 +131,24 @@ function EvaluationForm() {
   const filled = Object.values(state).filter((s) => s.score != null).length;
   const total = competencies?.length ?? 0;
   const pct = total ? Math.round((100 * filled) / total) : 0;
+  const isComplete = total > 0 && filled >= total;
+
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("evaluation_assignments")
+        .update({ status: "completed" })
+        .eq("id", assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assignment", assignmentId] });
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      toast.success("Avaliação concluída!");
+      navigate({ to: "/evaluator" });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   return (
     <div className="space-y-6">
@@ -207,8 +225,18 @@ function EvaluationForm() {
         <GoalsSection evaluateeId={assignment.evaluatee_id} cycleId={assignment.cycle_id} />
       )}
 
-      <div className="flex justify-end">
-        <Button onClick={() => navigate({ to: "/evaluator" })}>Concluir</Button>
+      <div className="flex items-center justify-end gap-3">
+        {!isComplete && (
+          <span className="text-xs text-muted-foreground">
+            Preencha todas as competências ({filled} de {total}) para concluir.
+          </span>
+        )}
+        <Button
+          onClick={() => completeMutation.mutate()}
+          disabled={!isComplete || completeMutation.isPending}
+        >
+          {completeMutation.isPending ? "Salvando..." : "Concluir"}
+        </Button>
       </div>
     </div>
   );
