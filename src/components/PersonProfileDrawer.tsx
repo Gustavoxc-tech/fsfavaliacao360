@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PersonAvatar } from "@/components/PersonAvatar";
+import { Camera } from "lucide-react";
+import { toast } from "sonner";
 import {
   Radar,
   RadarChart,
@@ -21,15 +25,6 @@ import type {
   VCompetencyResult,
   VPersonFinalScore,
 } from "@/lib/db-types";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
 
 function fmt(v: number | null | undefined) {
   return v == null ? "—" : Number(v).toFixed(2);
