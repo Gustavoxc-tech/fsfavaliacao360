@@ -94,23 +94,24 @@ function CollaboratorResults() {
     },
   });
 
+  // evaluatee_id (necessário para consultar metas e o resultado consolidado)
+  // vem da própria view de resultado final da avaliação 360°
+  const evaluateeId = final?.evaluatee_id;
+
   const { data: overall, error: overallError } = useQuery({
-    queryKey: ["overall", person?.id, effective],
-    enabled: !!person?.id && !!effective,
+    queryKey: ["overall", evaluateeId, effective],
+    enabled: !!evaluateeId && !!effective,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("v_person_final_score")
         .select("*")
-        .eq("evaluatee_person_id", person!.id)
+        .eq("evaluatee_id", evaluateeId)
         .eq("cycle_id", effective)
         .maybeSingle();
       if (error) throw error;
       return data as VPersonFinalScore | null;
     },
   });
-
-  // evaluatee_id (necessário para consultar metas) vem da própria view de resultado final
-  const evaluateeId = final?.evaluatee_id;
 
   const { data: goals } = useQuery({
     queryKey: ["my-goals", evaluateeId, effective],
