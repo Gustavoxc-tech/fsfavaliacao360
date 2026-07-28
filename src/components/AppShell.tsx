@@ -24,13 +24,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="w-64 border-r bg-card flex flex-col">
-        <div className="p-6 border-b">
+      <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
+        <div className="p-6 border-b border-sidebar-border">
           <h1 className="text-lg font-bold">Avaliação 360°</h1>
           {person && (
             <div className="mt-3 text-sm">
               <div className="font-medium truncate">{person.full_name}</div>
-              <div className="text-xs text-muted-foreground truncate">{person.job_title ?? "—"}</div>
+              <div className="text-xs text-sidebar-foreground/60 truncate">{person.job_title ?? "—"}</div>
             </div>
           )}
         </div>
@@ -44,7 +44,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={i.to}
                   to={i.to}
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                    active ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   {i.icon}
@@ -53,8 +55,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
         </nav>
-        <div className="p-3 border-t">
-          <Button variant="ghost" size="sm" className="w-full justify-start" onClick={signOut}>
+        <div className="p-3 border-t border-sidebar-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={signOut}
+          >
             <LogOut className="h-4 w-4 mr-2" /> Sair
           </Button>
         </div>
