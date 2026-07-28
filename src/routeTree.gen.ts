@@ -23,6 +23,7 @@ import { Route as AppAdminCertificationsRouteImport } from './routes/_app.admin.
 import { Route as AppAdminCompetenciesRouteImport } from './routes/_app.admin.competencies'
 import { Route as AppAdminCyclesRouteImport } from './routes/_app.admin.cycles'
 import { Route as AppAdminGoalsRouteImport } from './routes/_app.admin.goals'
+import { Route as AppAdminPendingRouteImport } from './routes/_app.admin.pending'
 import { Route as AppAdminPeopleRouteImport } from './routes/_app.admin.people'
 import { Route as AppEvaluatorIndexRouteImport } from './routes/_app.evaluator.index'
 import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
@@ -96,6 +97,11 @@ const AppAdminGoalsRoute = AppAdminGoalsRouteImport.update({
   path: '/goals',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminPendingRoute = AppAdminPendingRouteImport.update({
+  id: '/pending',
+  path: '/pending',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminPeopleRoute = AppAdminPeopleRouteImport.update({
   id: '/people',
   path: '/people',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/admin/competencies': typeof AppAdminCompetenciesRoute
   '/admin/cycles': typeof AppAdminCyclesRoute
   '/admin/goals': typeof AppAdminGoalsRoute
+  '/admin/pending': typeof AppAdminPendingRoute
   '/admin/people': typeof AppAdminPeopleRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin/': typeof AppAdminIndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/admin/competencies': typeof AppAdminCompetenciesRoute
   '/admin/cycles': typeof AppAdminCyclesRoute
   '/admin/goals': typeof AppAdminGoalsRoute
+  '/admin/pending': typeof AppAdminPendingRoute
   '/admin/people': typeof AppAdminPeopleRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin': typeof AppAdminIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/_app/admin/competencies': typeof AppAdminCompetenciesRoute
   '/_app/admin/cycles': typeof AppAdminCyclesRoute
   '/_app/admin/goals': typeof AppAdminGoalsRoute
+  '/_app/admin/pending': typeof AppAdminPendingRoute
   '/_app/admin/people': typeof AppAdminPeopleRoute
   '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/admin/competencies'
     | '/admin/cycles'
     | '/admin/goals'
+    | '/admin/pending'
     | '/admin/people'
     | '/evaluator/$assignmentId'
     | '/admin/'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin/competencies'
     | '/admin/cycles'
     | '/admin/goals'
+    | '/admin/pending'
     | '/admin/people'
     | '/evaluator/$assignmentId'
     | '/admin'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/_app/admin/competencies'
     | '/_app/admin/cycles'
     | '/_app/admin/goals'
+    | '/_app/admin/pending'
     | '/_app/admin/people'
     | '/_app/evaluator/$assignmentId'
     | '/_app/admin/'
@@ -328,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminGoalsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/pending': {
+      id: '/_app/admin/pending'
+      path: '/pending'
+      fullPath: '/admin/pending'
+      preLoaderRoute: typeof AppAdminPendingRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/people': {
       id: '/_app/admin/people'
       path: '/people'
@@ -359,6 +378,7 @@ interface AppAdminRouteChildren {
   AppAdminCompetenciesRoute: typeof AppAdminCompetenciesRoute
   AppAdminCyclesRoute: typeof AppAdminCyclesRoute
   AppAdminGoalsRoute: typeof AppAdminGoalsRoute
+  AppAdminPendingRoute: typeof AppAdminPendingRoute
   AppAdminPeopleRoute: typeof AppAdminPeopleRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
@@ -370,6 +390,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminCompetenciesRoute: AppAdminCompetenciesRoute,
   AppAdminCyclesRoute: AppAdminCyclesRoute,
   AppAdminGoalsRoute: AppAdminGoalsRoute,
+  AppAdminPendingRoute: AppAdminPendingRoute,
   AppAdminPeopleRoute: AppAdminPeopleRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
 }
