@@ -155,6 +155,16 @@ function EvaluationForm() {
 
   const isGestor = assignment?.evaluator_type_code === "gestor";
 
+  const { data: evaluatee } = useQuery({
+    queryKey: ["evaluatee-person", assignment?.evaluatee_id],
+    enabled: !!assignment?.evaluatee_id,
+    queryFn: async () => {
+      const { data } = await supabase.from("evaluatees").select("person_id").eq("id", assignment!.evaluatee_id).maybeSingle();
+      return data as { person_id: string } | null;
+    },
+  });
+  const personId = evaluatee?.person_id ?? null;
+
   return (
     <div className="space-y-6">
       <Link to="/evaluator" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
