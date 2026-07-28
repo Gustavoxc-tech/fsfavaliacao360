@@ -29,10 +29,9 @@ import type {
   VCompetencyResult,
   VEvaluateeFinalResult,
   EvaluationCycle,
-  VPersonFinalScore,
   Goal,
   GoalCategory,
-  VGoalCategoryResult,
+  EvaluationWeightConfig,
 } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/collaborator")({
@@ -94,24 +93,8 @@ function CollaboratorResults() {
     },
   });
 
-  // evaluatee_id (necessário para consultar metas e o resultado consolidado)
-  // vem da própria view de resultado final da avaliação 360°
+  // evaluatee_id (necessário para consultar metas) vem da própria view de resultado final
   const evaluateeId = final?.evaluatee_id;
-
-  const { data: overall, error: overallError } = useQuery({
-    queryKey: ["overall", evaluateeId, effective],
-    enabled: !!evaluateeId && !!effective,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("v_person_final_score")
-        .select("*")
-        .eq("evaluatee_id", evaluateeId)
-        .eq("cycle_id", effective)
-        .maybeSingle();
-      if (error) throw error;
-      return data as VPersonFinalScore | null;
-    },
-  });
 
   const { data: goals } = useQuery({
     queryKey: ["my-goals", evaluateeId, effective],
@@ -137,27 +120,60 @@ function CollaboratorResults() {
     },
   });
 
-  const { data: goalCatResults } = useQuery({
-    queryKey: ["my-goal-cat-results", evaluateeId, effective],
-    enabled: !!evaluateeId && !!effective,
+  // Peso de cada bloco no resultado geral (usa os padrões do sistema se o ciclo
+  // não tiver uma configuração própria: 60% competências / 30% metas / 5% / 5%)
+  const { data: weightConfig } = useQuery({
+    queryKey: ["my-weight-config", effective],
+    enabled: !!effective,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("v_goal_category_results")
+        .from("evaluation_weight_config")
         .select("*")
-        .eq("evaluatee_id", evaluateeId)
-        .eq("cycle_id", effective);
+        .eq("cycle_id", effective)
+        .maybeSingle();
       if (error) throw error;
-      return (data ?? []) as VGoalCategoryResult[];
+      return data as EvaluationWeightConfig | null;
+    },
+  });
+  const competenciesWeight = weightConfig ? Number(weightConfig.competencies_weight) : 0.6;
+  const goalsWeight = weightConfig ? Number(weightConfig.goals_weight) : 0.3;
+  const academicWeight = weightConfig ? Number(weightConfig.academic_weight) : 0.05;
+  const certificationWeight = weightConfig ? Number(weightConfig.certification_weight) : 0.05;
+
+  // Nota de qualificação acadêmica: maior nível "atual" cadastrado para a pessoa
+  const { data: academicScore } = useQuery({
+    queryKey: ["my-academic-score", person?.id],
+    enabled: !!person?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("person_academic_qualifications")
+        .select("is_current, academic_levels(score)")
+        .eq("person_id", person!.id)
+        .eq("is_current", true);
+      if (error) throw error;
+      const scores = (data ?? [])
+        .map((r: any) => r.academic_levels?.score)
+        .filter((s: any) => s != null)
+        .map(Number);
+      return scores.length ? Math.max(...scores) : null;
     },
   });
 
-  // Leitura resiliente: a view pode expor os campos como *_final_score ou *_score
-  // dependendo da versão do schema — evita que os valores fiquem undefined por
-  // divergência de nome de coluna.
-  const ov = overall as any;
-  const goalsScore = overall ? (ov.goals_final_score ?? ov.goals_score ?? null) : null;
-  const academicScore = overall ? (ov.academic_final_score ?? ov.academic_score ?? null) : null;
-  const certificationScore = overall ? (ov.certification_final_score ?? ov.certification_score ?? null) : null;
+  // Nota de certificações: soma dos bônus das certificações marcadas como obtidas
+  const { data: certificationScore } = useQuery({
+    queryKey: ["my-certification-score", person?.id],
+    enabled: !!person?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("person_certifications")
+        .select("obtained, certifications_catalog(bonus)")
+        .eq("person_id", person!.id)
+        .eq("obtained", true);
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+      return data.reduce((sum: number, r: any) => sum + Number(r.certifications_catalog?.bonus ?? 0), 0);
+    },
+  });
 
   const radarData = (byComp ?? []).map((r) => ({
     competency: r.competency_name,
@@ -178,15 +194,46 @@ function CollaboratorResults() {
     }));
   }, [byComp]);
 
-  const radialData = [{ name: "Final", value: overall?.overall_final_score ?? 0, fill: "var(--primary)" }];
+  // Metas: calculado direto de goals + goal_categories (tabelas simples, sem
+  // depender de nenhuma view), no mesmo critério usado no restante do sistema:
+  // % de alcance = obtido / esperado, ponderado pelo peso de cada categoria.
+  const goalsByCategory = useMemo(() => {
+    return (goalCategories ?? [])
+      .map((cat) => {
+        const items = (goals ?? []).filter((g) => g.category_id === cat.id);
+        const expectedSum = items.reduce((s, g) => s + Number(g.expected_score || 0), 0);
+        const obtainedSum = items.reduce((s, g) => s + Number(g.obtained_score ?? 0), 0);
+        const pctAlcance = expectedSum > 0 ? obtainedSum / expectedSum : null;
+        const weightedResult = pctAlcance != null ? pctAlcance * Number(cat.weight) : null;
+        return { cat, items, pctAlcance, weightedResult };
+      })
+      .filter((g) => g.items.length > 0);
+  }, [goalCategories, goals]);
 
-  const goalsByCategory = (goalCategories ?? [])
-    .map((cat) => ({
-      cat,
-      items: (goals ?? []).filter((g) => g.category_id === cat.id),
-      result: goalCatResults?.find((r) => r.category_id === cat.id),
-    }))
-    .filter((g) => g.items.length > 0);
+  const goalsFinalScore = useMemo(() => {
+    const withData = goalsByCategory.filter((g) => g.weightedResult != null);
+    if (withData.length === 0) return null;
+    const sumWeighted = withData.reduce((s, g) => s + (g.weightedResult ?? 0), 0);
+    const sumWeight = withData.reduce((s, g) => s + Number(g.cat.weight), 0);
+    return sumWeight > 0 ? (sumWeighted / sumWeight) * 5 : null;
+  }, [goalsByCategory]);
+
+  // Resultado consolidado final, ponderando apenas os blocos que já têm nota
+  const competenciesScore = final?.final_result ?? null;
+  const overallFinalScore = useMemo(() => {
+    const parts = [
+      { score: competenciesScore, weight: competenciesWeight },
+      { score: goalsFinalScore, weight: goalsWeight },
+      { score: academicScore ?? null, weight: academicWeight },
+      { score: certificationScore ?? null, weight: certificationWeight },
+    ];
+    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
+    if (totalWeight <= 0) return null;
+    const totalWeighted = parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0);
+    return totalWeighted / totalWeight;
+  }, [competenciesScore, competenciesWeight, goalsFinalScore, goalsWeight, academicScore, academicWeight, certificationScore, certificationWeight]);
+
+  const radialData = [{ name: "Final", value: overallFinalScore ?? 0, fill: "var(--primary)" }];
 
   return (
     <div className="space-y-6">
@@ -221,96 +268,78 @@ function CollaboratorResults() {
 
           {/* ----------------- DASHBOARD CONSOLIDADO ----------------- */}
           <TabsContent value="dashboard" className="mt-4 space-y-6">
-            {overallError && (
-              <Card className="border-destructive/50">
-                <CardContent className="py-6 text-sm text-destructive">
-                  Não foi possível carregar o resultado consolidado: {(overallError as Error).message}
-                </CardContent>
-              </Card>
-            )}
-            {!overallError && !overall && (
-              <Card>
-                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Ainda não há resultado consolidado disponível para este ciclo.
-                </CardContent>
-              </Card>
-            )}
-            {overall && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="card-hover">
-                  <CardHeader><CardTitle>Nota Final Geral</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="relative h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadialBarChart innerRadius="70%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
-                          <PolarAngleAxis type="number" domain={[0, 5]} angleAxisId={0} tick={false} />
-                          <RadialBar background={{ fill: "var(--muted)" }} dataKey="value" cornerRadius={10} isAnimationActive animationDuration={900} />
-                        </RadialBarChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 grid place-items-center">
-                        <div className="text-center">
-                          <div className="text-4xl font-bold text-primary">{fmt(overall.overall_final_score)}</div>
-                          <div className="text-xs text-muted-foreground">de 5,00</div>
-                        </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="card-hover">
+                <CardHeader><CardTitle>Nota Final Geral</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="relative h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadialBarChart innerRadius="70%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
+                        <PolarAngleAxis type="number" domain={[0, 5]} angleAxisId={0} tick={false} />
+                        <RadialBar background={{ fill: "var(--muted)" }} dataKey="value" cornerRadius={10} isAnimationActive animationDuration={900} />
+                      </RadialBarChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="text-center">
+                        <div className="text-4xl font-bold text-primary">{fmt(overallFinalScore)}</div>
+                        <div className="text-xs text-muted-foreground">de 5,00</div>
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                      <MiniStat label="Competências" v={overall.competencies_score} w={overall.competencies_weight} />
-                      <MiniStat label="Metas" v={goalsScore} w={overall.goals_weight} />
-                      <MiniStat label="Qualificação" v={academicScore} w={overall.academic_weight} />
-                      <MiniStat label="Certificação" v={certificationScore} w={overall.certification_weight} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="card-hover">
-                  <CardHeader><CardTitle>Atitudes vs Habilidades</CardTitle></CardHeader>
-                  <CardContent style={{ height: 320 }}>
-                    {dimensionData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={dimensionData}>
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="dimension" />
-                          <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
-                          <Radar dataKey="nota" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.35} isAnimationActive animationDuration={800} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {overall && (
-              <Card className="card-hover">
-                <CardHeader><CardTitle>Resumo Geral Ponderado</CardTitle></CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Bloco</TableHead>
-                        <TableHead className="text-right">Nota</TableHead>
-                        <TableHead className="text-right">Peso</TableHead>
-                        <TableHead className="text-right">Contribuição</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <SummaryRow label="Competências" score={overall.competencies_score} weight={overall.competencies_weight} />
-                      <SummaryRow label="Metas" score={goalsScore} weight={overall.goals_weight} />
-                      <SummaryRow label="Qualificação Acadêmica" score={academicScore} weight={overall.academic_weight} />
-                      <SummaryRow label="Certificações" score={certificationScore} weight={overall.certification_weight} />
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-bold">Nota Final Geral</TableCell>
-                        <TableCell colSpan={2}></TableCell>
-                        <TableCell className="text-right font-bold text-lg text-primary">{fmt(overall.overall_final_score)}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <MiniStat label="Competências" v={competenciesScore} w={competenciesWeight} />
+                    <MiniStat label="Metas" v={goalsFinalScore} w={goalsWeight} />
+                    <MiniStat label="Qualificação" v={academicScore ?? null} w={academicWeight} />
+                    <MiniStat label="Certificação" v={certificationScore ?? null} w={certificationWeight} />
+                  </div>
                 </CardContent>
               </Card>
-            )}
+
+              <Card className="card-hover">
+                <CardHeader><CardTitle>Atitudes vs Habilidades</CardTitle></CardHeader>
+                <CardContent style={{ height: 320 }}>
+                  {dimensionData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={dimensionData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="dimension" />
+                        <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+                        <Radar dataKey="nota" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.35} isAnimationActive animationDuration={800} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="card-hover">
+              <CardHeader><CardTitle>Resumo Geral Ponderado</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bloco</TableHead>
+                      <TableHead className="text-right">Nota</TableHead>
+                      <TableHead className="text-right">Peso</TableHead>
+                      <TableHead className="text-right">Contribuição</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <SummaryRow label="Competências" score={competenciesScore} weight={competenciesWeight} />
+                    <SummaryRow label="Metas" score={goalsFinalScore} weight={goalsWeight} />
+                    <SummaryRow label="Qualificação Acadêmica" score={academicScore ?? null} weight={academicWeight} />
+                    <SummaryRow label="Certificações" score={certificationScore ?? null} weight={certificationWeight} />
+                    <TableRow className="border-t-2">
+                      <TableCell className="font-bold">Nota Final Geral</TableCell>
+                      <TableCell colSpan={2}></TableCell>
+                      <TableCell className="text-right font-bold text-lg text-primary">{fmt(overallFinalScore)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ----------------- AVALIAÇÃO 360° ----------------- */}
@@ -390,8 +419,8 @@ function CollaboratorResults() {
           {/* ----------------- METAS ----------------- */}
           <TabsContent value="goals" className="mt-4 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <KPI label="Resultado de Metas" value={goalsScore} highlight />
-              <KPI label="Peso no Resultado Geral" value={overall ? Number(overall.goals_weight) * 5 : null} />
+              <KPI label="Resultado de Metas" value={goalsFinalScore} highlight />
+              <KPI label="Peso no Resultado Geral" value={goalsWeight * 5} />
             </div>
 
             {goalsByCategory.length === 0 ? (
@@ -401,14 +430,14 @@ function CollaboratorResults() {
                 </CardContent>
               </Card>
             ) : (
-              goalsByCategory.map(({ cat, items, result }) => (
+              goalsByCategory.map(({ cat, items, pctAlcance, weightedResult }) => (
                 <Card key={cat.id} className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-base">{cat.name}</CardTitle>
                     <div className="text-right text-sm">
                       <div className="text-muted-foreground">% de alcance</div>
                       <div className="font-bold text-primary">
-                        {result?.pct_alcance != null ? `${(Number(result.pct_alcance) * 100).toFixed(0)}%` : "—"}
+                        {pctAlcance != null ? `${(pctAlcance * 100).toFixed(0)}%` : "—"}
                       </div>
                     </div>
                   </CardHeader>
@@ -432,7 +461,7 @@ function CollaboratorResults() {
                         <TableRow className="border-t-2">
                           <TableCell className="font-bold">Ponderado da categoria</TableCell>
                           <TableCell colSpan={1}></TableCell>
-                          <TableCell className="text-right font-bold text-primary">{fmt(result?.weighted_result)}</TableCell>
+                          <TableCell className="text-right font-bold text-primary">{fmt(weightedResult)}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
