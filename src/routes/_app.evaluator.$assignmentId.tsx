@@ -277,7 +277,7 @@ function EvaluationForm() {
         </TabsContent>
 
         <TabsContent value="academic" className="mt-4 space-y-4">
-          <AcademicView personId={assignment?.evaluatee_person_id ?? null} />
+          <AcademicView personId={personId} />
           <div className="flex justify-end">
             <Button onClick={() => setTab("certifications")}>
               Ir para Certificações <ChevronRight className="h-4 w-4 ml-1" />
@@ -286,7 +286,7 @@ function EvaluationForm() {
         </TabsContent>
 
         <TabsContent value="certifications" className="mt-4 space-y-4">
-          <CertificationsView personId={assignment?.evaluatee_person_id ?? null} />
+          <CertificationsView personId={personId} />
           <div className="flex justify-end">
             <Button
               onClick={() => completeMutation.mutate()}
