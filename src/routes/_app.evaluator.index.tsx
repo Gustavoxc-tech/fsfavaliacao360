@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { VAssignmentProgress } from "@/lib/db-types";
 
@@ -62,13 +61,6 @@ function EvaluatorList() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>{a.scores_filled} de {a.total_competencies} competências</span>
-                  <span>{a.pct_complete}%</span>
-                </div>
-                <Progress value={a.pct_complete} />
-              </div>
               <Button
                 type="button"
                 size="sm"
