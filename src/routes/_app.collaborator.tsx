@@ -94,16 +94,17 @@ function CollaboratorResults() {
     },
   });
 
-  const { data: overall } = useQuery({
+  const { data: overall, error: overallError } = useQuery({
     queryKey: ["overall", person?.id, effective],
     enabled: !!person?.id && !!effective,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("v_person_final_score")
         .select("*")
         .eq("evaluatee_person_id", person!.id)
         .eq("cycle_id", effective)
         .maybeSingle();
+      if (error) throw error;
       return data as VPersonFinalScore | null;
     },
   });
@@ -148,6 +149,14 @@ function CollaboratorResults() {
       return (data ?? []) as VGoalCategoryResult[];
     },
   });
+
+  // Leitura resiliente: a view pode expor os campos como *_final_score ou *_score
+  // dependendo da versão do schema — evita que os valores fiquem undefined por
+  // divergência de nome de coluna.
+  const ov = overall as any;
+  const goalsScore = overall ? (ov.goals_final_score ?? ov.goals_score ?? null) : null;
+  const academicScore = overall ? (ov.academic_final_score ?? ov.academic_score ?? null) : null;
+  const certificationScore = overall ? (ov.certification_final_score ?? ov.certification_score ?? null) : null;
 
   const radarData = (byComp ?? []).map((r) => ({
     competency: r.competency_name,
@@ -211,6 +220,20 @@ function CollaboratorResults() {
 
           {/* ----------------- DASHBOARD CONSOLIDADO ----------------- */}
           <TabsContent value="dashboard" className="mt-4 space-y-6">
+            {overallError && (
+              <Card className="border-destructive/50">
+                <CardContent className="py-6 text-sm text-destructive">
+                  Não foi possível carregar o resultado consolidado: {(overallError as Error).message}
+                </CardContent>
+              </Card>
+            )}
+            {!overallError && !overall && (
+              <Card>
+                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                  Ainda não há resultado consolidado disponível para este ciclo.
+                </CardContent>
+              </Card>
+            )}
             {overall && (
               <div className="grid gap-4 md:grid-cols-2">
                 <Card className="card-hover">
@@ -232,9 +255,9 @@ function CollaboratorResults() {
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                       <MiniStat label="Competências" v={overall.competencies_score} w={overall.competencies_weight} />
-                      <MiniStat label="Metas" v={overall.goals_final_score} w={overall.goals_weight} />
-                      <MiniStat label="Qualificação" v={overall.academic_final_score} w={overall.academic_weight} />
-                      <MiniStat label="Certificação" v={overall.certification_final_score} w={overall.certification_weight} />
+                      <MiniStat label="Metas" v={goalsScore} w={overall.goals_weight} />
+                      <MiniStat label="Qualificação" v={academicScore} w={overall.academic_weight} />
+                      <MiniStat label="Certificação" v={certificationScore} w={overall.certification_weight} />
                     </div>
                   </CardContent>
                 </Card>
@@ -274,9 +297,9 @@ function CollaboratorResults() {
                     </TableHeader>
                     <TableBody>
                       <SummaryRow label="Competências" score={overall.competencies_score} weight={overall.competencies_weight} />
-                      <SummaryRow label="Metas" score={overall.goals_final_score} weight={overall.goals_weight} />
-                      <SummaryRow label="Qualificação Acadêmica" score={overall.academic_final_score} weight={overall.academic_weight} />
-                      <SummaryRow label="Certificações" score={overall.certification_final_score} weight={overall.certification_weight} />
+                      <SummaryRow label="Metas" score={goalsScore} weight={overall.goals_weight} />
+                      <SummaryRow label="Qualificação Acadêmica" score={academicScore} weight={overall.academic_weight} />
+                      <SummaryRow label="Certificações" score={certificationScore} weight={overall.certification_weight} />
                       <TableRow className="border-t-2">
                         <TableCell className="font-bold">Nota Final Geral</TableCell>
                         <TableCell colSpan={2}></TableCell>
@@ -366,7 +389,7 @@ function CollaboratorResults() {
           {/* ----------------- METAS ----------------- */}
           <TabsContent value="goals" className="mt-4 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <KPI label="Resultado de Metas" value={overall?.goals_final_score ?? null} highlight />
+              <KPI label="Resultado de Metas" value={goalsScore} highlight />
               <KPI label="Peso no Resultado Geral" value={overall ? Number(overall.goals_weight) * 5 : null} />
             </div>
 
@@ -384,7 +407,7 @@ function CollaboratorResults() {
                     <div className="text-right text-sm">
                       <div className="text-muted-foreground">% de alcance</div>
                       <div className="font-bold text-primary">
-                        {result?.pct_alcance != null ? `${Number(result.pct_alcance).toFixed(0)}%` : "—"}
+                        {result?.pct_alcance != null ? `${(Number(result.pct_alcance) * 100).toFixed(0)}%` : "—"}
                       </div>
                     </div>
                   </CardHeader>
