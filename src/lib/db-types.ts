@@ -23,12 +23,25 @@ export interface EvaluatorType {
   display_order: number;
 }
  
+export type Diretoria =
+  | "Diretoria de Benefícios"
+  | "Diretoria de Finanças"
+  | "Superintendência";
+
+export const DIRETORIAS: Diretoria[] = [
+  "Diretoria de Benefícios",
+  "Diretoria de Finanças",
+  "Superintendência",
+];
+
 export interface Person {
   id: string;
   full_name: string;
   email: string | null;
   job_title: string | null;
   area: string | null;
+  diretoria: Diretoria | null;
+  avatar_url: string | null;
   auth_user_id: string | null;
   is_active: boolean;
 }
