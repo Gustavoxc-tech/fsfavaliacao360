@@ -32,8 +32,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               PZ
             </div>
             <div>
-              <h1 className="text-base font-bold leading-tight">EVshift</h1>
-              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Sua jornada em movimento.</p>
+              <h1 className="text-base font-bold leading-tight">EVSHIFT</h1>
+              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Sua jornada em movimento</p>
             </div>
           </div>
           {person && (
