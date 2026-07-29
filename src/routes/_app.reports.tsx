@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,24 +9,58 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText } from "lucide-react";
+import { toast } from "sonner";
 import type {
   EvaluationCycle,
   VEvaluateeFinalResult,
   VAssignmentProgress,
   VCompetencyResult,
-  VPersonFinalScore,
+  Goal,
+  GoalCategory,
+  EvaluationWeightConfig,
 } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/reports")({
   component: ReportsPage,
 });
 
+// Cores do design system (mesmas do styles.css) usadas nos exports
+const BRAND = {
+  primaryHex: "0E3A45",
+  primaryRgb: [14, 58, 69] as [number, number, number],
+  accentHex: "1F8A70",
+  accentRgb: [31, 138, 112] as [number, number, number],
+  lightBg: "F6FAFC",
+  grayText: [90, 100, 105] as [number, number, number],
+};
+
+const METHOD_TEXT = {
+  competencies:
+    "Cada competência é avaliada de 0 a 5 por até 4 tipos de avaliador (Gestor, Pares, Subordinados e " +
+    "Autoavaliação). A nota da competência é a média das notas dadas pelos avaliadores que efetivamente " +
+    "avaliaram, ponderada pelo peso de cada tipo de avaliador. O resultado de Competências (Avaliação 360°) " +
+    "é a média das notas ponderadas de todas as competências avaliadas.",
+  goals:
+    "Cada meta tem uma nota esperada e uma nota obtida. Para cada categoria de metas, calcula-se o % de " +
+    "alcance (soma do obtido ÷ soma do esperado) e multiplica-se pelo peso da categoria. O resultado de " +
+    "Metas é a soma desses valores ponderados dividida pela soma dos pesos das categorias com meta " +
+    "cadastrada, numa escala de 0 a 5.",
+  academic:
+    "É considerado o maior nível de formação acadêmica marcado como 'atual' no cadastro da pessoa " +
+    "(ex.: Graduação, Pós-Graduação, Mestrado), cada um com uma nota de 0 a 5 definida previamente pelo RH.",
+  certification:
+    "É a soma dos bônus de todas as certificações profissionais marcadas como obtidas no cadastro da pessoa.",
+  overall:
+    "O Resultado Final Geral é a média ponderada dos 4 blocos acima (pesos padrão: 60% Competências, 30% " +
+    "Metas, 5% Qualificação Acadêmica, 5% Certificações — configuráveis por ciclo). Se algum bloco ainda " +
+    "não tem nota, o peso dele é redistribuído entre os blocos que já têm nota, em vez de contar como zero.",
+};
+
 function ReportsPage() {
   const { isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [cycleId, setCycleId] = useState<string | undefined>();
-  const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,7 +83,8 @@ function ReportsPage() {
     queryKey: ["finals", cycleId],
     enabled: !!cycleId,
     queryFn: async () => {
-      const { data } = await supabase.from("v_evaluatee_final_results").select("*").eq("cycle_id", cycleId);
+      const { data, error } = await supabase.from("v_evaluatee_final_results").select("*").eq("cycle_id", cycleId);
+      if (error) throw error;
       return (data ?? []) as VEvaluateeFinalResult[];
     },
   });
@@ -63,16 +98,78 @@ function ReportsPage() {
     },
   });
 
-  const { data: overalls } = useQuery({
-    queryKey: ["overalls", cycleId],
+  // Peso de cada bloco no ciclo (usa padrão do sistema se não houver configuração própria)
+  const { data: weightConfig } = useQuery({
+    queryKey: ["report-weight-config", cycleId],
     enabled: !!cycleId,
     queryFn: async () => {
-      const { data } = await supabase.from("v_person_final_score").select("*").eq("cycle_id", cycleId);
-      return (data ?? []) as VPersonFinalScore[];
+      const { data, error } = await supabase
+        .from("evaluation_weight_config")
+        .select("*")
+        .eq("cycle_id", cycleId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as EvaluationWeightConfig | null;
+    },
+  });
+  const weights = {
+    competencies: weightConfig ? Number(weightConfig.competencies_weight) : 0.6,
+    goals: weightConfig ? Number(weightConfig.goals_weight) : 0.3,
+    academic: weightConfig ? Number(weightConfig.academic_weight) : 0.05,
+    certification: weightConfig ? Number(weightConfig.certification_weight) : 0.05,
+  };
+
+  // Metas de todo o ciclo (todas as pessoas de uma vez, para montar o relatório)
+  const { data: allGoals } = useQuery({
+    queryKey: ["report-goals", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("goals").select("*").eq("cycle_id", cycleId);
+      if (error) throw error;
+      return (data ?? []) as Goal[];
     },
   });
 
-  const overallByEvaluatee = (id: string) => overalls?.find((o) => o.evaluatee_id === id);
+  const { data: goalCategories } = useQuery({
+    queryKey: ["report-goal-categories", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("goal_categories").select("*").eq("cycle_id", cycleId);
+      if (error) throw error;
+      return (data ?? []) as GoalCategory[];
+    },
+  });
+
+  // person_id de cada avaliado, para buscar qualificação/certificação
+  const personIds = useMemo(() => [...new Set((finals ?? []).map((f) => f.evaluatee_person_id))], [finals]);
+
+  const { data: academicRows } = useQuery({
+    queryKey: ["report-academic", personIds],
+    enabled: personIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("person_academic_qualifications")
+        .select("person_id, is_current, academic_levels(score)")
+        .eq("is_current", true)
+        .in("person_id", personIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: certRows } = useQuery({
+    queryKey: ["report-certifications", personIds],
+    enabled: personIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("person_certifications")
+        .select("person_id, obtained, certifications_catalog(bonus)")
+        .eq("obtained", true)
+        .in("person_id", personIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
 
   const completionByEvaluatee = (evaluateeId: string) => {
     const items = (progress ?? []).filter((p) => p.evaluatee_id === evaluateeId);
@@ -81,249 +178,296 @@ function ReportsPage() {
     return Math.round(sum / items.length);
   };
 
-  // --- EXPORTAÇÃO EXECUTIVA PARA EXCEL (XLS HTML) ---
-  const exportCSV = async (final: VEvaluateeFinalResult) => {
-    const o = overallByEvaluatee(final.evaluatee_id);
-    const { data } = await supabase
-      .from("v_competency_results")
-      .select("*")
-      .eq("evaluatee_id", final.evaluatee_id)
-      .order("display_order");
-    const rows = (data ?? []) as VCompetencyResult[];
+  // ---- Cálculo consolidado, feito no cliente (não depende de v_person_final_score) ----
+  function computeConsolidated(f: VEvaluateeFinalResult) {
+    const competenciesScore = f.final_result ?? null;
 
-    const excelHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; }
-          .header { background-color: #1e3a8a; color: white; font-size: 24px; font-weight: bold; padding: 15px; text-align: center; }
-          .section-title { background-color: #3b82f6; color: white; font-size: 16px; font-weight: bold; padding: 10px; margin-top: 20px; }
-          .table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-          .table th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
-          .table td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
-          .methodology { background-color: #f8fafc; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 20px; font-size: 12px; color: #334155; }
-        </style>
-      </head>
-      <body>
-        <table>
-          <tr><td colspan="8" class="header">Relatório Executivo de Avaliação 360° - ${final.evaluatee_name}</td></tr>
-          
-          <tr><td colspan="8" class="section-title">Resumo de Desempenho</td></tr>
-          <tr>
-            <th colspan="2">Dimensão</th>
-            <th colspan="2">Nota Obtida</th>
-            <th colspan="2">Peso (%)</th>
-            <th colspan="2">Contribuição Final</th>
-          </tr>
-          <tr><td colspan="2">Competências</td><td colspan="2">${o?.competencies_score ?? "-"}</td><td colspan="2">${o?.competencies_weight ?? "-"}</td><td colspan="2">${o && o.competencies_score != null ? (Number(o.competencies_score) * Number(o.competencies_weight)).toFixed(2) : "-"}</td></tr>
-          <tr><td colspan="2">Metas</td><td colspan="2">${o?.goals_final_score ?? "-"}</td><td colspan="2">${o?.goals_weight ?? "-"}</td><td colspan="2">${o && o.goals_final_score != null ? (Number(o.goals_final_score) * Number(o.goals_weight)).toFixed(2) : "-"}</td></tr>
-          <tr><td colspan="2">Qualificação</td><td colspan="2">${o?.academic_final_score ?? "-"}</td><td colspan="2">${o?.academic_weight ?? "-"}</td><td colspan="2">${o && o.academic_final_score != null ? (Number(o.academic_final_score) * Number(o.academic_weight)).toFixed(2) : "-"}</td></tr>
-          <tr><td colspan="2">Certificações</td><td colspan="2">${o?.certification_final_score ?? "-"}</td><td colspan="2">${o?.certification_weight ?? "-"}</td><td colspan="2">${o && o.certification_final_score != null ? (Number(o.certification_final_score) * Number(o.certification_weight)).toFixed(2) : "-"}</td></tr>
-          <tr><th colspan="6" style="text-align: right; font-size: 14px;">NOTA FINAL GERAL</th><th colspan="2" style="font-size: 14px; background-color: #dbeafe; color: #1e3a8a;">${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "-"}</th></tr>
+    const goalsByCategory = (goalCategories ?? [])
+      .map((cat) => {
+        const items = (allGoals ?? []).filter((g) => g.evaluatee_id === f.evaluatee_id && g.category_id === cat.id);
+        const expectedSum = items.reduce((s, g) => s + Number(g.expected_score || 0), 0);
+        const obtainedSum = items.reduce((s, g) => s + Number(g.obtained_score ?? 0), 0);
+        const pctAlcance = expectedSum > 0 ? obtainedSum / expectedSum : null;
+        const weightedResult = pctAlcance != null ? pctAlcance * Number(cat.weight) : null;
+        return { cat, items, pctAlcance, weightedResult };
+      })
+      .filter((g) => g.items.length > 0);
 
-          <tr><td colspan="8"></td></tr>
-          <tr><td colspan="8" class="section-title">Detalhamento por Competência</td></tr>
-          <tr>
-            <th>Dimensão</th>
-            <th>Categoria</th>
-            <th>Competência</th>
-            <th>Gestor</th>
-            <th>Pares</th>
-            <th>Subordinados</th>
-            <th>Autoavaliação</th>
-            <th>Nota Ponderada</th>
-          </tr>
-          ${rows.map(r => `
-            <tr>
-              <td>${r.dimension ?? "-"}</td>
-              <td>${r.category ?? "-"}</td>
-              <td style="text-align: left;">${r.competency_name ?? "-"}</td>
-              <td>${r.gestor_score ?? "-"}</td>
-              <td>${r.pares_score ?? "-"}</td>
-              <td>${r.subordinados_score ?? "-"}</td>
-              <td>${r.autoavaliacao_score ?? "-"}</td>
-              <td style="background-color: #f1f5f9; font-weight: bold;">${r.weighted_result ?? "-"}</td>
-            </tr>
-          `).join('')}
-          
-          <tr><td colspan="8"></td></tr>
-          <tr><td colspan="8" class="section-title">Metodologia de Cálculo</td></tr>
-          <tr><td colspan="8" class="methodology" style="text-align: left;">
-            <b>1. Contribuição Final por Dimensão:</b> Calculada multiplicando a "Nota Obtida" pelo "Peso" definido para aquela dimensão.<br/>
-            <b>2. Nota Final Geral:</b> É a soma das contribuições finais de todas as dimensões avaliadas (Competências, Metas, Qualificação e Certificações).<br/>
-            <b>3. Nota Ponderada por Competência:</b> Calculada com base na média ponderada das avaliações recebidas de cada grupo (Gestor, Pares, Subordinados, Autoavaliação), conforme os pesos configurados no sistema.
-          </td></tr>
-        </table>
-      </body>
-      </html>
-    `;
-    
-    const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Relatorio_Executivo_${final.evaluatee_name.replace(/\s+/g, '_')}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+    const withData = goalsByCategory.filter((g) => g.weightedResult != null);
+    const goalsScore =
+      withData.length === 0
+        ? null
+        : (withData.reduce((s, g) => s + (g.weightedResult ?? 0), 0) /
+            withData.reduce((s, g) => s + Number(g.cat.weight), 0)) *
+          5;
 
-  // --- EXPORTAÇÃO EXECUTIVA PARA PDF (VISUAL) ---
-  const exportPDF = async (final: VEvaluateeFinalResult) => {
-    setExporting(final.evaluatee_id);
+    const myAcademic = (academicRows ?? []).filter((r) => r.person_id === f.evaluatee_person_id);
+    const academicScores = myAcademic.map((r) => r.academic_levels?.score).filter((s) => s != null).map(Number);
+    const academicScore = academicScores.length ? Math.max(...academicScores) : null;
+
+    const myCerts = (certRows ?? []).filter((r) => r.person_id === f.evaluatee_person_id);
+    const certificationScore = myCerts.length
+      ? myCerts.reduce((s, r) => s + Number(r.certifications_catalog?.bonus ?? 0), 0)
+      : null;
+
+    const parts = [
+      { score: competenciesScore, weight: weights.competencies },
+      { score: goalsScore, weight: weights.goals },
+      { score: academicScore, weight: weights.academic },
+      { score: certificationScore, weight: weights.certification },
+    ];
+    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
+    const overallFinalScore =
+      totalWeight > 0 ? parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0) / totalWeight : null;
+
+    return { competenciesScore, goalsScore, academicScore, certificationScore, overallFinalScore, goalsByCategory };
+  }
+
+  // ---------------------------- EXPORT EXCEL (.xlsx) ----------------------------
+  const exportXLSX = async (final: VEvaluateeFinalResult) => {
+    setExporting(`xlsx-${final.evaluatee_id}`);
     try {
-      const o = overallByEvaluatee(final.evaluatee_id);
-      const { data } = await supabase
+      const ExcelJS = (await import("exceljs")).default;
+      const { data: compData, error } = await supabase
         .from("v_competency_results")
         .select("*")
         .eq("evaluatee_id", final.evaluatee_id)
         .order("display_order");
-      const rows = (data ?? []) as VCompetencyResult[];
+      if (error) throw error;
+      const rows = (compData ?? []) as VCompetencyResult[];
+      const c = computeConsolidated(final);
 
-      const container = document.createElement("div");
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      container.style.width = "800px";
-      container.style.backgroundColor = "white";
-      container.style.padding = "40px";
-      container.style.fontFamily = "'Inter', sans-serif";
-      container.style.color = "#1e293b";
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Evoluir 360";
+      wb.created = new Date();
 
-      container.innerHTML = `
-        <div style="border-bottom: 4px solid #2563eb; padding-bottom: 15px; margin-bottom: 30px;">
-          <h1 style="font-size: 28px; color: #1e3a8a; margin: 0;">Relatório Executivo de Avaliação 360°</h1>
-          <p style="font-size: 18px; color: #64748b; margin: 5px 0 0 0;">Colaborador: <span style="color: #0f172a; font-weight: 600;">${final.evaluatee_name}</span></p>
-        </div>
+      // ---- Aba 1: Resultados ----
+      const ws = wb.addWorksheet("Resultados", { pageSetup: { orientation: "landscape" } });
+      ws.mergeCells("A1:F1");
+      ws.getCell("A1").value = `Avaliação 360° — ${final.evaluatee_name}`;
+      ws.getCell("A1").font = { size: 18, bold: true, color: { argb: "FF" + BRAND.primaryHex } };
+      ws.mergeCells("A2:F2");
+      ws.getCell("A2").value = `Ciclo avaliado — gerado em ${new Date().toLocaleDateString("pt-BR")}`;
+      ws.getCell("A2").font = { italic: true, size: 10, color: { argb: "FF666666" } };
+      ws.addRow([]);
 
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
-          <h2 style="font-size: 18px; color: #334155; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Resumo de Desempenho</h2>
-          
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <thead>
-              <tr style="background-color: #e2e8f0; color: #475569;">
-                <th style="padding: 10px; text-align: left;">Dimensão</th>
-                <th style="padding: 10px; text-align: center;">Nota Obtida</th>
-                <th style="padding: 10px; text-align: center;">Peso</th>
-                <th style="padding: 10px; text-align: right;">Contribuição Final</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px; font-weight: 500;">Competências</td>
-                <td style="padding: 10px; text-align: center;">${o?.competencies_score ?? "-"}</td>
-                <td style="padding: 10px; text-align: center;">${o?.competencies_weight ? o.competencies_weight + '%' : "-"}</td>
-                <td style="padding: 10px; text-align: right; font-weight: 600;">${o && o.competencies_score != null ? (Number(o.competencies_score) * Number(o.competencies_weight)).toFixed(2) : "-"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px; font-weight: 500;">Metas</td>
-                <td style="padding: 10px; text-align: center;">${o?.goals_final_score ?? "-"}</td>
-                <td style="padding: 10px; text-align: center;">${o?.goals_weight ? o.goals_weight + '%' : "-"}</td>
-                <td style="padding: 10px; text-align: right; font-weight: 600;">${o && o.goals_final_score != null ? (Number(o.goals_final_score) * Number(o.goals_weight)).toFixed(2) : "-"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px; font-weight: 500;">Qualificação</td>
-                <td style="padding: 10px; text-align: center;">${o?.academic_final_score ?? "-"}</td>
-                <td style="padding: 10px; text-align: center;">${o?.academic_weight ? o.academic_weight + '%' : "-"}</td>
-                <td style="padding: 10px; text-align: right; font-weight: 600;">${o && o.academic_final_score != null ? (Number(o.academic_final_score) * Number(o.academic_weight)).toFixed(2) : "-"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #cbd5e1;">
-                <td style="padding: 10px; font-weight: 500;">Certificações</td>
-                <td style="padding: 10px; text-align: center;">${o?.certification_final_score ?? "-"}</td>
-                <td style="padding: 10px; text-align: center;">${o?.certification_weight ? o.certification_weight + '%' : "-"}</td>
-                <td style="padding: 10px; text-align: right; font-weight: 600;">${o && o.certification_final_score != null ? (Number(o.certification_final_score) * Number(o.certification_weight)).toFixed(2) : "-"}</td>
-              </tr>
-              <tr style="background-color: #dbeafe; color: #1e3a8a;">
-                <td colspan="3" style="padding: 12px 10px; font-weight: bold; text-align: right; font-size: 16px;">NOTA FINAL GERAL</td>
-                <td style="padding: 12px 10px; font-weight: bold; text-align: right; font-size: 18px;">${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "-"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      const kpiHeaderRow = ws.addRow(["Bloco", "Nota (0-5)", "Peso", "Contribuição"]);
+      styleHeaderRow(kpiHeaderRow);
+      const kpiRows: [string, number | null, number][] = [
+        ["Competências (Avaliação 360°)", c.competenciesScore, weights.competencies],
+        ["Metas", c.goalsScore, weights.goals],
+        ["Qualificação Acadêmica", c.academicScore, weights.academic],
+        ["Certificações", c.certificationScore, weights.certification],
+      ];
+      for (const [label, score, weight] of kpiRows) {
+        const row = ws.addRow([label, score != null ? Number(score.toFixed(2)) : "—", `${(weight * 100).toFixed(0)}%`, score != null ? Number((score * weight).toFixed(3)) : "—"]);
+        row.eachCell((cell) => (cell.border = THIN_BORDER));
+      }
+      const finalRow = ws.addRow(["Nota Final Geral", "", "", c.overallFinalScore != null ? Number(c.overallFinalScore.toFixed(2)) : "—"]);
+      finalRow.font = { bold: true, size: 12, color: { argb: "FF" + BRAND.primaryHex } };
+      finalRow.eachCell((cell) => (cell.border = THIN_BORDER));
+      ws.addRow([]);
 
-        <h2 style="font-size: 18px; color: #334155; margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Detalhamento por Competência</h2>
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 30px;">
-          <thead>
-            <tr style="background-color: #1e293b; color: white;">
-              <th style="padding: 8px; text-align: left;">Competência</th>
-              <th style="padding: 8px; text-align: center;">Gestor</th>
-              <th style="padding: 8px; text-align: center;">Pares</th>
-              <th style="padding: 8px; text-align: center;">Sub</th>
-              <th style="padding: 8px; text-align: center;">Auto</th>
-              <th style="padding: 8px; text-align: center; background-color: #0f172a;">Pond.</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((r, i) => `
-              <tr style="background-color: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 8px; color: #334155;">${r.competency_name.length > 50 ? r.competency_name.slice(0, 50) + "..." : r.competency_name}</td>
-                <td style="padding: 8px; text-align: center;">${r.gestor_score ?? "-"}</td>
-                <td style="padding: 8px; text-align: center;">${r.pares_score ?? "-"}</td>
-                <td style="padding: 8px; text-align: center;">${r.subordinados_score ?? "-"}</td>
-                <td style="padding: 8px; text-align: center;">${r.autoavaliacao_score ?? "-"}</td>
-                <td style="padding: 8px; text-align: center; font-weight: bold; color: #0f172a; background-color: ${i % 2 === 0 ? '#f1f5f9' : '#e2e8f0'};">${r.weighted_result ?? "-"}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      const compHeaderRow = ws.addRow(["Dimensão", "Categoria", "Competência", "Gestor", "Pares", "Subordinados", "Auto", "Ponderado"]);
+      styleHeaderRow(compHeaderRow, 8);
+      for (const r of rows) {
+        const row = ws.addRow([r.dimension, r.category, r.competency_name, numOrDash(r.gestor_score), numOrDash(r.pares_score), numOrDash(r.subordinados_score), numOrDash(r.autoavaliacao_score), numOrDash(r.weighted_result)]);
+        row.eachCell((cell) => (cell.border = THIN_BORDER));
+      }
+      ws.columns = [{ width: 14 }, { width: 22 }, { width: 34 }, { width: 10 }, { width: 10 }, { width: 12 }, { width: 10 }, { width: 12 }];
 
-        <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 0;">
-          <h3 style="margin-top: 0; color: #1e3a8a; font-size: 14px; margin-bottom: 8px;">Metodologia de Cálculo Utilizada</h3>
-          <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #475569; line-height: 1.6;">
-            <li><b>Contribuição Final:</b> Obtida através da multiplicação da Nota pelo respectivo Peso da dimensão.</li>
-            <li><b>Nota Final Geral:</b> Representa a soma exata de todas as contribuições finais das dimensões avaliadas.</li>
-            <li><b>Nota Ponderada (Pond.):</b> Média das avaliações da competência considerando os pesos atribuídos aos diferentes tipos de avaliadores (Gestor, Pares, Subordinados, Autoavaliação).</li>
-          </ul>
-        </div>
-      `;
-
-      document.body.appendChild(container);
-
-      // Usando bibliotecas que já estão no seu projeto!
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      if (pdfHeight > pdf.internal.pageSize.getHeight()) {
-         let heightLeft = pdfHeight;
-         let position = 0;
-         const pageHeight = pdf.internal.pageSize.getHeight();
-         
-         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-         heightLeft -= pageHeight;
-         
-         while (heightLeft >= 0) {
-           position = heightLeft - pdfHeight;
-           pdf.addPage();
-           pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-           heightLeft -= pageHeight;
-         }
-      } else {
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      if (c.goalsByCategory.length > 0) {
+        ws.addRow([]);
+        const goalsTitle = ws.addRow(["Metas por Categoria"]);
+        goalsTitle.getCell(1).font = { bold: true, size: 13, color: { argb: "FF" + BRAND.primaryHex } };
+        const goalsHeaderRow = ws.addRow(["Categoria", "Meta", "Peso Categoria", "Esperado", "Obtido", "% Alcance"]);
+        styleHeaderRow(goalsHeaderRow, 6);
+        for (const g of c.goalsByCategory) {
+          for (const item of g.items) {
+            const row = ws.addRow([
+              g.cat.name,
+              item.description,
+              `${(Number(g.cat.weight) * 100).toFixed(0)}%`,
+              numOrDash(item.expected_score),
+              numOrDash(item.obtained_score),
+              g.pctAlcance != null ? `${(g.pctAlcance * 100).toFixed(0)}%` : "—",
+            ]);
+            row.eachCell((cell) => (cell.border = THIN_BORDER));
+          }
+        }
       }
 
-      pdf.save(`Relatorio_Executivo_${final.evaluatee_name.replace(/\s+/g, "_")}.pdf`);
-      document.body.removeChild(container);
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
+      // ---- Aba 2: Metodologia ----
+      const wsM = wb.addWorksheet("Metodologia de Cálculo");
+      wsM.mergeCells("A1:B1");
+      wsM.getCell("A1").value = "Metodologia de Cálculo";
+      wsM.getCell("A1").font = { size: 16, bold: true, color: { argb: "FF" + BRAND.primaryHex } };
+      wsM.columns = [{ width: 26 }, { width: 100 }];
+      const methodRows: [string, string][] = [
+        ["1. Competências (60%)", METHOD_TEXT.competencies],
+        ["2. Metas (30%)", METHOD_TEXT.goals],
+        ["3. Qualificação Acadêmica (5%)", METHOD_TEXT.academic],
+        ["4. Certificações (5%)", METHOD_TEXT.certification],
+        ["Resultado Final Geral", METHOD_TEXT.overall],
+      ];
+      wsM.addRow([]);
+      for (const [title, text] of methodRows) {
+        const row = wsM.addRow([title, text]);
+        row.getCell(1).font = { bold: true };
+        row.getCell(2).alignment = { wrapText: true, vertical: "top" };
+        row.height = 60;
+      }
+      wsM.getColumn(1).alignment = { vertical: "top" };
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      triggerDownload(blob, `avaliacao_${final.evaluatee_name.replace(/\s+/g, "_")}.xlsx`);
+    } catch (err: any) {
+      toast.error(`Erro ao gerar Excel: ${err.message}`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  // ---------------------------- EXPORT PDF ----------------------------
+  const exportPDF = async (final: VEvaluateeFinalResult) => {
+    setExporting(`pdf-${final.evaluatee_id}`);
+    try {
+      const { data: compData, error } = await supabase
+        .from("v_competency_results")
+        .select("*")
+        .eq("evaluatee_id", final.evaluatee_id)
+        .order("display_order");
+      if (error) throw error;
+      const rows = (compData ?? []) as VCompetencyResult[];
+      const c = computeConsolidated(final);
+
+      const { default: jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Cabeçalho com faixa de cor
+      doc.setFillColor(...BRAND.primaryRgb);
+      doc.rect(0, 0, pageWidth, 32, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.text("Avaliação 360°", 14, 14);
+      doc.setFontSize(12);
+      doc.text(final.evaluatee_name, 14, 23);
+      doc.setFontSize(8);
+      doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, pageWidth - 14, 14, { align: "right" });
+      doc.setTextColor(0, 0, 0);
+
+      let y = 42;
+      doc.setFontSize(13);
+      doc.setTextColor(...BRAND.primaryRgb);
+      doc.text("Resultado Consolidado", 14, y);
+      doc.setTextColor(0, 0, 0);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Bloco", "Nota (0-5)", "Peso", "Contribuição"]],
+        body: [
+          ["Competências (Avaliação 360°)", fmt(c.competenciesScore), `${(weights.competencies * 100).toFixed(0)}%`, fmt(c.competenciesScore != null ? c.competenciesScore * weights.competencies : null)],
+          ["Metas", fmt(c.goalsScore), `${(weights.goals * 100).toFixed(0)}%`, fmt(c.goalsScore != null ? c.goalsScore * weights.goals : null)],
+          ["Qualificação Acadêmica", fmt(c.academicScore), `${(weights.academic * 100).toFixed(0)}%`, fmt(c.academicScore != null ? c.academicScore * weights.academic : null)],
+          ["Certificações", fmt(c.certificationScore), `${(weights.certification * 100).toFixed(0)}%`, fmt(c.certificationScore != null ? c.certificationScore * weights.certification : null)],
+        ],
+        foot: [["Nota Final Geral", "", "", fmt(c.overallFinalScore)]],
+        theme: "striped",
+        headStyles: { fillColor: BRAND.primaryRgb },
+        footStyles: { fillColor: [230, 240, 238], textColor: BRAND.primaryRgb, fontStyle: "bold" },
+        styles: { fontSize: 9 },
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 12;
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(13);
+      doc.setTextColor(...BRAND.primaryRgb);
+      doc.text("Detalhamento por Competência", 14, y);
+      doc.setTextColor(0, 0, 0);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Competência", "Dimensão", "Gestor", "Pares", "Sub.", "Auto", "Ponderado"]],
+        body: rows.map((r) => [r.competency_name, r.dimension, fmt(r.gestor_score), fmt(r.pares_score), fmt(r.subordinados_score), fmt(r.autoavaliacao_score), fmt(r.weighted_result)]),
+        theme: "grid",
+        headStyles: { fillColor: BRAND.accentRgb },
+        styles: { fontSize: 8 },
+        margin: { top: 10 },
+      });
+
+      if (c.goalsByCategory.length > 0) {
+        y = (doc as any).lastAutoTable.finalY + 12;
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(13);
+        doc.setTextColor(...BRAND.primaryRgb);
+        doc.text("Metas por Categoria", 14, y);
+        doc.setTextColor(0, 0, 0);
+        y += 4;
+        const goalRows: any[] = [];
+        for (const g of c.goalsByCategory) {
+          for (const item of g.items) {
+            goalRows.push([g.cat.name, item.description, fmt(item.expected_score), fmt(item.obtained_score), g.pctAlcance != null ? `${(g.pctAlcance * 100).toFixed(0)}%` : "—"]);
+          }
+        }
+        autoTable(doc, {
+          startY: y,
+          head: [["Categoria", "Meta", "Esperado", "Obtido", "% Alcance"]],
+          body: goalRows,
+          theme: "grid",
+          headStyles: { fillColor: BRAND.accentRgb },
+          styles: { fontSize: 8 },
+        });
+      }
+
+      // ---- Página de metodologia ----
+      doc.addPage();
+      doc.setFillColor(...BRAND.primaryRgb);
+      doc.rect(0, 0, pageWidth, 24, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(15);
+      doc.text("Metodologia de Cálculo", 14, 15);
+      doc.setTextColor(0, 0, 0);
+
+      let my = 34;
+      const methodItems: [string, string][] = [
+        ["1. Competências — Avaliação 360° (peso padrão 60%)", METHOD_TEXT.competencies],
+        ["2. Metas (peso padrão 30%)", METHOD_TEXT.goals],
+        ["3. Qualificação Acadêmica (peso padrão 5%)", METHOD_TEXT.academic],
+        ["4. Certificações (peso padrão 5%)", METHOD_TEXT.certification],
+        ["Resultado Final Geral", METHOD_TEXT.overall],
+      ];
+      doc.setFontSize(10);
+      for (const [title, text] of methodItems) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...BRAND.primaryRgb);
+        doc.text(title, 14, my);
+        my += 6;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(40, 40, 40);
+        const lines = doc.splitTextToSize(text, pageWidth - 28);
+        doc.text(lines, 14, my);
+        my += lines.length * 5 + 8;
+        if (my > 265) { doc.addPage(); my = 20; }
+      }
+
+      doc.save(`avaliacao_${final.evaluatee_name.replace(/\s+/g, "_")}.pdf`);
+    } catch (err: any) {
+      toast.error(`Erro ao gerar PDF: ${err.message}`);
     } finally {
       setExporting(null);
     }
   };
 
   return (
-    <div className="space-y-6" ref={reportRef}>
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Relatórios Executivos</h1>
-        <p className="text-sm text-muted-foreground">Status de conclusão e resultados consolidados para a Diretoria.</p>
+        <h1 className="text-2xl font-bold">Relatórios</h1>
+        <p className="text-sm text-muted-foreground">Status de conclusão e resultados consolidados.</p>
       </div>
 
       <Card>
@@ -362,7 +506,7 @@ function ReportsPage() {
             <TableBody>
               {finals?.map((f) => {
                 const pct = completionByEvaluatee(f.evaluatee_id);
-                const o = overallByEvaluatee(f.evaluatee_id);
+                const c = computeConsolidated(f);
                 return (
                   <TableRow key={f.evaluatee_id}>
                     <TableCell className="font-medium">{f.evaluatee_name}</TableCell>
@@ -370,11 +514,11 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.pares_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
-                    <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.goals_final_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.academic_final_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.certification_final_score)}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.competenciesScore)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.goalsScore)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.academicScore)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.certificationScore)}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">{fmt(c.overallFinalScore)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress value={pct} className="flex-1" />
@@ -383,11 +527,11 @@ function ReportsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => exportCSV(f)}>
-                          <Download className="h-3 w-3 mr-1" /> XLS
+                        <Button size="sm" variant="outline" onClick={() => exportXLSX(f)} disabled={exporting === `xlsx-${f.evaluatee_id}`}>
+                          <Download className="h-3 w-3 mr-1" /> Excel
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => exportPDF(f)} disabled={exporting === f.evaluatee_id}>
-                          {exporting === f.evaluatee_id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />} PDF
+                        <Button size="sm" variant="outline" onClick={() => exportPDF(f)} disabled={exporting === `pdf-${f.evaluatee_id}`}>
+                          <FileText className="h-3 w-3 mr-1" /> PDF
                         </Button>
                       </div>
                     </TableCell>
@@ -405,6 +549,32 @@ function ReportsPage() {
   );
 }
 
+const THIN_BORDER = {
+  top: { style: "thin" as const, color: { argb: "FFDDDDDD" } },
+  bottom: { style: "thin" as const, color: { argb: "FFDDDDDD" } },
+};
+
+function styleHeaderRow(row: any, cols = 4) {
+  row.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  for (let i = 1; i <= cols; i++) {
+    row.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + BRAND.primaryHex } };
+    row.getCell(i).border = THIN_BORDER;
+  }
+}
+
+function numOrDash(v: number | null | undefined) {
+  return v == null ? "—" : Number(v);
+}
+
 function fmt(v: number | null | undefined) {
   return v == null ? "—" : Number(v).toFixed(2);
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
