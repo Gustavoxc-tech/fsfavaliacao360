@@ -1,257 +1,225 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { Download, FileText } from "lucide-react";
-import type {
-  EvaluationCycle,
-  VEvaluateeFinalResult,
-  VAssignmentProgress,
-  VCompetencyResult,
-  VPersonFinalScore,
-} from "@/lib/db-types";
+import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, FileSpreadsheet, Loader2, BarChart3 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-export const Route = createFileRoute("/_app/reports")({
-  component: ReportsPage,
+// Definição da Rota
+export const Route = createFileRoute('/_app/reports')({
+  component: ReportsExecutivePage,
 });
 
-function ReportsPage() {
-  const { isAdmin, loading } = useAuth();
-  const navigate = useNavigate();
-  const [cycleId, setCycleId] = useState<string | undefined>();
-  const reportRef = useRef<HTMLDivElement>(null);
-  const [exporting, setExporting] = useState<string | null>(null);
+// --- DADOS E METODOLOGIA MOCKADOS ---
+// Substitua esta seção pelas chamadas reais da sua API/Supabase
+const mockResultados = [
+  { colaborador: 'Ana Silva', departamento: 'Vendas', notaAuto: 4.5, notaGestor: 4.2, notaPares: 4.6, mediaFinal: 4.43 },
+  { colaborador: 'Carlos Souza', departamento: 'TI', notaAuto: 3.8, notaGestor: 4.0, notaPares: 3.9, mediaFinal: 3.90 },
+  { colaborador: 'Mariana Costa', departamento: 'Marketing', notaAuto: 4.8, notaGestor: 4.7, notaPares: 4.9, mediaFinal: 4.80 },
+];
 
-  useEffect(() => {
-    if (!loading && !isAdmin) navigate({ to: "/" });
-  }, [loading, isAdmin, navigate]);
+const metodologiaDeCalculo = `
+Metodologia de Cálculo - Avaliação 360:
+O modelo de cálculo utilizado para compor a Média Final de cada colaborador segue uma média ponderada das avaliações recebidas, visando equilíbrio e justiça nos resultados.
 
-  const { data: cycles } = useQuery({
-    queryKey: ["cycles"],
-    queryFn: async () => {
-      const { data } = await supabase.from("evaluation_cycles").select("*").order("start_date", { ascending: false });
-      return (data ?? []) as EvaluationCycle[];
-    },
-  });
+Pesos aplicados:
+- Autoavaliação: Peso 1 (20%)
+- Avaliação do Gestor: Peso 2 (40%)
+- Avaliação dos Pares: Peso 2 (40%)
 
-  useEffect(() => {
-    if (!cycleId && cycles && cycles.length > 0) setCycleId(cycles[0].id);
-  }, [cycles, cycleId]);
+Fórmula aplicada:
+Média Final = ((Autoavaliação * 1) + (Avaliação Gestor * 2) + (Avaliação Pares * 2)) / 5
 
-  const { data: finals } = useQuery({
-    queryKey: ["finals", cycleId],
-    enabled: !!cycleId,
-    queryFn: async () => {
-      const { data } = await supabase.from("v_evaluatee_final_results").select("*").eq("cycle_id", cycleId);
-      return (data ?? []) as VEvaluateeFinalResult[];
-    },
-  });
+As notas variam de 1 (Necessita Melhoria) a 5 (Excede Expectativas). Resultados acima de 4.0 são considerados indicativos de alta performance.
+`;
 
-  const { data: progress } = useQuery({
-    queryKey: ["progress", cycleId],
-    enabled: !!cycleId,
-    queryFn: async () => {
-      const { data } = await supabase.from("v_assignment_progress").select("*").eq("cycle_id", cycleId);
-      return (data ?? []) as VAssignmentProgress[];
-    },
-  });
+function ReportsExecutivePage() {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
 
-  const { data: overalls } = useQuery({
-    queryKey: ["overalls", cycleId],
-    enabled: !!cycleId,
-    queryFn: async () => {
-      const { data } = await supabase.from("v_person_final_score").select("*").eq("cycle_id", cycleId);
-      return (data ?? []) as VPersonFinalScore[];
-    },
-  });
+  // --- GERAÇÃO DE PDF EXECUTIVO ---
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const doc = new jsPDF('p', 'pt', 'a4');
+      const margin = 40;
+      let startY = margin;
 
-  const overallByEvaluatee = (id: string) => overalls?.find((o) => o.evaluatee_id === id);
+      // Cabeçalho / Título
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 37, 41);
+      doc.text('Relatório Executivo - Avaliação 360', margin, startY);
+      startY += 30;
 
-  const completionByEvaluatee = (evaluateeId: string) => {
-    const items = (progress ?? []).filter((p) => p.evaluatee_id === evaluateeId);
-    if (items.length === 0) return 0;
-    const sum = items.reduce((s, i) => s + i.pct_complete, 0);
-    return Math.round(sum / items.length);
-  };
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(\`Data de Emissão: \${new Date().toLocaleDateString('pt-BR')}\`, margin, startY);
+      startY += 40;
 
-  const exportCSV = async (final: VEvaluateeFinalResult) => {
-    const o = overallByEvaluatee(final.evaluatee_id);
-    const { data } = await supabase
-      .from("v_competency_results")
-      .select("*")
-      .eq("evaluatee_id", final.evaluatee_id);
-    const rows = (data ?? []) as VCompetencyResult[];
-    const summary = [
-      `"Resumo","Nota","Peso","Contribuição"`,
-      `"Competências","${o?.competencies_score ?? ""}","${o?.competencies_weight ?? ""}","${o && o.competencies_score != null ? Number(o.competencies_score) * Number(o.competencies_weight) : ""}"`,
-      `"Metas","${o?.goals_final_score ?? ""}","${o?.goals_weight ?? ""}","${o && o.goals_final_score != null ? Number(o.goals_final_score) * Number(o.goals_weight) : ""}"`,
-      `"Qualificação","${o?.academic_final_score ?? ""}","${o?.academic_weight ?? ""}","${o && o.academic_final_score != null ? Number(o.academic_final_score) * Number(o.academic_weight) : ""}"`,
-      `"Certificações","${o?.certification_final_score ?? ""}","${o?.certification_weight ?? ""}","${o && o.certification_final_score != null ? Number(o.certification_final_score) * Number(o.certification_weight) : ""}"`,
-      `"Nota Final Geral","","","${o?.overall_final_score ?? ""}"`,
-      "",
-    ];
-    const header = ["Dimensão", "Categoria", "Competência", "Gestor", "Pares", "Subordinados", "Auto", "Ponderado"];
-    const lines = [
-      ...summary,
-      header.join(","),
-      ...rows.map((r) =>
-        [r.dimension, r.category, r.competency_name, r.gestor_score, r.pares_score, r.subordinados_score, r.autoavaliacao_score, r.weighted_result]
-          .map((v) => `"${v ?? ""}"`)
-          .join(",")
-      ),
-    ];
-    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    triggerDownload(blob, `avaliacao_${final.evaluatee_name.replace(/\s+/g, "_")}.csv`);
-  };
+      // Seção: Metodologia
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 37, 41);
+      doc.text('1. Metodologia e Critérios de Cálculo', margin, startY);
+      startY += 20;
 
-  const exportPDF = async (final: VEvaluateeFinalResult) => {
-    setExporting(final.evaluatee_id);
-    const o = overallByEvaluatee(final.evaluatee_id);
-    const { data } = await supabase
-      .from("v_competency_results")
-      .select("*")
-      .eq("evaluatee_id", final.evaluatee_id)
-      .order("display_order");
-    const rows = (data ?? []) as VCompetencyResult[];
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const splitMetodologia = doc.splitTextToSize(metodologiaDeCalculo.trim(), doc.internal.pageSize.getWidth() - margin * 2);
+      doc.text(splitMetodologia, margin, startY);
+      startY += (splitMetodologia.length * 12) + 40;
 
-    const jsPDF = (await import("jspdf")).default;
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text(`Avaliação 360° — ${final.evaluatee_name}`, 14, 18);
-    doc.setFontSize(10);
-    doc.text(`Nota Final Geral: ${o?.overall_final_score != null ? Number(o.overall_final_score).toFixed(2) : "—"}`, 14, 28);
-    doc.text(`Competências: ${fmt(o?.competencies_score ?? final.final_result)}  |  Metas: ${fmt(o?.goals_final_score)}  |  Qualif.: ${fmt(o?.academic_final_score)}  |  Cert.: ${fmt(o?.certification_final_score)}`, 14, 34);
+      // Seção: Resultados
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 37, 41);
+      doc.text('2. Resultados da Avaliação', margin, startY);
+      startY += 15;
 
-    let y = 46;
-    doc.setFontSize(9);
-    doc.text("Competência", 14, y);
-    doc.text("Gestor", 110, y);
-    doc.text("Pares", 130, y);
-    doc.text("Sub", 150, y);
-    doc.text("Auto", 165, y);
-    doc.text("Pond", 185, y);
-    y += 4;
-    doc.line(14, y, 200, y);
-    y += 5;
+      // Tabela de Resultados
+      const tableData = mockResultados.map((r) => [
+        r.colaborador,
+        r.departamento,
+        r.notaAuto.toFixed(2),
+        r.notaGestor.toFixed(2),
+        r.notaPares.toFixed(2),
+        r.mediaFinal.toFixed(2),
+      ]);
 
-    for (const r of rows) {
-      if (y > 280) { doc.addPage(); y = 20; }
-      const name = r.competency_name.length > 50 ? r.competency_name.slice(0, 50) + "…" : r.competency_name;
-      doc.text(name, 14, y);
-      doc.text(String(r.gestor_score ?? "—"), 110, y);
-      doc.text(String(r.pares_score ?? "—"), 130, y);
-      doc.text(String(r.subordinados_score ?? "—"), 150, y);
-      doc.text(String(r.autoavaliacao_score ?? "—"), 165, y);
-      doc.text(String(r.weighted_result ?? "—"), 185, y);
-      y += 6;
+      autoTable(doc, {
+        startY: startY,
+        head: [['Colaborador', 'Departamento', 'Autoavaliação', 'Gestor', 'Pares', 'Média Final']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 6 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+
+      // Salvar PDF
+      doc.save('Relatorio_Executivo_Avaliacao_360.pdf');
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+    } finally {
+      setIsGeneratingPdf(false);
     }
+  };
 
-    doc.save(`avaliacao_${final.evaluatee_name.replace(/\s+/g, "_")}.pdf`);
-    setExporting(null);
+  // --- GERAÇÃO DE EXCEL EXECUTIVO ---
+  const handleGenerateExcel = async () => {
+    setIsGeneratingExcel(true);
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      // Aba 1: Resultados
+      const worksheetData = mockResultados.map(r => ({
+        'Colaborador': r.colaborador,
+        'Departamento': r.departamento,
+        'Autoavaliação (Peso 1)': r.notaAuto,
+        'Avaliação Gestor (Peso 2)': r.notaGestor,
+        'Avaliação Pares (Peso 2)': r.notaPares,
+        'Média Final (Calculada)': r.mediaFinal
+      }));
+      const worksheetResultados = XLSX.utils.json_to_sheet(worksheetData);
+      
+      // Ajuste de largura das colunas
+      worksheetResultados['!cols'] = [
+        { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 25 }, { wch: 25 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, worksheetResultados, 'Resultados_360');
+
+      // Aba 2: Metodologia
+      const metodologiaRows = metodologiaDeCalculo.split('\n').map(line => ({ 'Detalhes da Metodologia': line }));
+      const worksheetMetodologia = XLSX.utils.json_to_sheet(metodologiaRows);
+      worksheetMetodologia['!cols'] = [{ wch: 100 }];
+      XLSX.utils.book_append_sheet(workbook, worksheetMetodologia, 'Metodologia_e_Calculos');
+
+      // Salvar Excel
+      XLSX.writeFile(workbook, 'Relatorio_Executivo_Avaliacao_360.xlsx');
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+    } finally {
+      setIsGeneratingExcel(false);
+    }
   };
 
   return (
-    <div className="space-y-6" ref={reportRef}>
-      <div>
-        <h1 className="text-2xl font-bold">Relatórios</h1>
-        <p className="text-sm text-muted-foreground">Status de conclusão e resultados consolidados.</p>
+    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Relatório Executivo</h1>
+          <p className="text-slate-500 mt-1">Gere relatórios completos de desempenho com metodologias integradas.</p>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-center gap-3">
-            <Label>Ciclo:</Label>
-            <Select value={cycleId} onValueChange={setCycleId}>
-              <SelectTrigger className="w-[300px]"><SelectValue placeholder="Selecionar ciclo" /></SelectTrigger>
-              <SelectContent>
-                {cycles?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card PDF */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-lg flex items-center justify-center mb-4">
+              <FileText size={24} />
+            </div>
+            <CardTitle>Relatório em PDF</CardTitle>
+            <CardDescription>
+              Documento formatado ideal para leitura, envio para a Diretoria e arquivamento formal. Contém toda a metodologia e tabelas de resultados.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={handleGeneratePDF} 
+              disabled={isGeneratingPdf} 
+              className="w-full bg-slate-900 hover:bg-slate-800"
+            >
+              {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+              {isGeneratingPdf ? 'Gerando Documento...' : 'Baixar PDF Executivo'}
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className="py-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Avaliado</TableHead>
-                <TableHead className="text-right">Gestor</TableHead>
-                <TableHead className="text-right">Pares</TableHead>
-                <TableHead className="text-right">Sub.</TableHead>
-                <TableHead className="text-right">Auto</TableHead>
-                <TableHead className="text-right">Compet.</TableHead>
-                <TableHead className="text-right">Metas</TableHead>
-                <TableHead className="text-right">Qualif.</TableHead>
-                <TableHead className="text-right">Cert.</TableHead>
-                <TableHead className="text-right">Final Geral</TableHead>
-                <TableHead className="w-40">Conclusão</TableHead>
-                <TableHead className="text-right">Exportar</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {finals?.map((f) => {
-                const pct = completionByEvaluatee(f.evaluatee_id);
-                const o = overallByEvaluatee(f.evaluatee_id);
-                return (
-                  <TableRow key={f.evaluatee_id}>
-                    <TableCell className="font-medium">{f.evaluatee_name}</TableCell>
-                    <TableCell className="text-right">{fmt(f.gestor_avg)}</TableCell>
-                    <TableCell className="text-right">{fmt(f.pares_avg)}</TableCell>
-                    <TableCell className="text-right">{fmt(f.subordinados_avg)}</TableCell>
-                    <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
-                    <TableCell className="text-right">{fmt(f.final_result)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.goals_final_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.academic_final_score)}</TableCell>
-                    <TableCell className="text-right">{fmt(o?.certification_final_score)}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{fmt(o?.overall_final_score)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={pct} className="flex-1" />
-                        <span className="text-xs w-10 text-right">{pct}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => exportCSV(f)}>
-                          <Download className="h-3 w-3 mr-1" /> CSV
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => exportPDF(f)} disabled={exporting === f.evaluatee_id}>
-                          <FileText className="h-3 w-3 mr-1" /> PDF
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {finals?.length === 0 && (
-                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+        {/* Card Excel */}
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-4">
+              <FileSpreadsheet size={24} />
+            </div>
+            <CardTitle>Relatório em Planilha (Excel)</CardTitle>
+            <CardDescription>
+              Extração de dados brutos organizada em abas (Resultados e Metodologia). Ideal para aprofundamento analítico e cruzamento de dados.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={handleGenerateExcel} 
+              disabled={isGeneratingExcel} 
+              variant="outline"
+              className="w-full border-slate-300 hover:bg-slate-50"
+            >
+              {isGeneratingExcel ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />}
+              {isGeneratingExcel ? 'Processando Planilha...' : 'Baixar Excel'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Preview Section */}
+      <Card className="mt-4 border-slate-200 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center text-lg">
+            <BarChart3 className="mr-2 h-5 w-5 text-slate-500" />
+            Pré-visualização da Metodologia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-slate-50 p-6 rounded-lg text-sm text-slate-700 whitespace-pre-wrap font-mono border border-slate-100">
+            {metodologiaDeCalculo}
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function fmt(v: number | null | undefined) {
-  return v == null ? "—" : Number(v).toFixed(2);
-}
-
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
