@@ -292,7 +292,7 @@ function EvaluationForm() {
 
         <TabsContent value="goals" className="mt-4 space-y-4">
           {isGestor && assignment?.evaluatee_id && assignment?.cycle_id ? (
-            <GoalsSection evaluateeId={assignment.evaluatee_id} cycleId={assignment.cycle_id} />
+            <GoalsSection evaluateeId={assignment.evaluatee_id} cycleId={assignment.cycle_id} readOnly={readOnly} />
           ) : (
             <Card className="card-hover">
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -320,13 +320,19 @@ function EvaluationForm() {
         <TabsContent value="certifications" className="mt-4 space-y-4">
           <CertificationsView personId={personId} />
           <div className="flex justify-end">
-            <Button
-              onClick={() => completeMutation.mutate()}
-              disabled={completeMutation.isPending}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
-              {completeMutation.isPending ? "Concluindo..." : "Concluir Avaliação"}
-            </Button>
+            {readOnly ? (
+              <Badge className="bg-success text-success-foreground px-4 py-2 text-sm">
+                <Check className="h-4 w-4 mr-1" /> Avaliação concluída
+              </Badge>
+            ) : (
+              <Button
+                onClick={() => completeMutation.mutate()}
+                disabled={completeMutation.isPending}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
+                {completeMutation.isPending ? "Concluindo..." : "Concluir Avaliação"}
+              </Button>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -334,7 +340,7 @@ function EvaluationForm() {
   );
 }
 
-function GoalsSection({ evaluateeId, cycleId }: { evaluateeId: string; cycleId: string }) {
+function GoalsSection({ evaluateeId, cycleId, readOnly }: { evaluateeId: string; cycleId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
 
   const { data: goals } = useQuery({
@@ -437,8 +443,10 @@ function GoalsSection({ evaluateeId, cycleId }: { evaluateeId: string; cycleId: 
                       <Input
                         type="number" step="0.5" min="0" max="5"
                         value={local[g.id] ?? ""}
+                        disabled={readOnly}
                         onChange={(e) => setLocal((s) => ({ ...s, [g.id]: e.target.value }))}
                         onBlur={(e) => {
+                          if (readOnly) return;
                           const raw = e.target.value;
                           const parsed = raw === "" ? null : Number(raw);
                           if (parsed !== g.obtained_score) save.mutate({ id: g.id, obtained: parsed });
