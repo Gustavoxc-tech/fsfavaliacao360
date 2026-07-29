@@ -51,6 +51,8 @@ function EvaluationForm() {
     },
   });
 
+  const readOnly = assignment?.status === "completed";
+
   const { data: competencies } = useQuery({
     queryKey: ["competencies-for-evaluatee", assignment?.evaluatee_id],
     enabled: !!assignment?.evaluatee_id,
@@ -124,12 +126,14 @@ function EvaluationForm() {
   });
 
   const handleScore = (competencyId: string, score: number) => {
+    if (readOnly) return;
     setState((s) => ({ ...s, [competencyId]: { ...s[competencyId], score, saving: true } }));
     const evidence = state[competencyId]?.evidence ?? "";
     saveMutation.mutate({ competencyId, score, evidence });
   };
 
   const handleEvidenceBlur = (competencyId: string) => {
+    if (readOnly) return;
     const s = state[competencyId];
     if (!s?.score) return;
     setState((st) => ({ ...st, [competencyId]: { ...s, saving: true } }));
@@ -193,6 +197,15 @@ function EvaluationForm() {
         </p>
       </div>
 
+      {readOnly && (
+        <Card className="border-success/50 bg-success/5">
+          <CardContent className="py-3 flex items-center gap-2 text-sm text-success">
+            <Check className="h-4 w-4" />
+            Esta avaliação já foi concluída. Você está visualizando em modo somente leitura — não é mais possível alterar as notas.
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="sticky top-4 z-10 card-hover">
         <CardContent className="py-4">
           <div className="flex justify-between text-sm mb-1">
@@ -239,10 +252,13 @@ function EvaluationForm() {
                         <button
                           key={n}
                           type="button"
+                          disabled={readOnly}
                           onClick={() => handleScore(c.id, n)}
                           className={`text-left rounded-md border p-3 text-xs transition-all ${
                             s.score === n
                               ? "border-primary bg-primary/5 ring-2 ring-primary shadow-sm"
+                              : readOnly
+                              ? "opacity-60 cursor-default"
                               : "hover:bg-accent hover:border-primary/40"
                           }`}
                         >
@@ -255,6 +271,7 @@ function EvaluationForm() {
                   <Textarea
                     placeholder="Evidências ou comentários (opcional)"
                     value={s.evidence}
+                    disabled={readOnly}
                     onChange={(e) => setState((st) => ({ ...st, [c.id]: { ...s, evidence: e.target.value } }))}
                     onBlur={() => handleEvidenceBlur(c.id)}
                     rows={2}
