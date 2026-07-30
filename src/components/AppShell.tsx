@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, ClipboardList, BarChart3, Settings, FileText } from "lucide-react";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import logoAsset from "@/assets/fsfss-logo.png.asset.json";
 import type { ReactNode } from "react";
 
 interface NavItem {
@@ -27,9 +28,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
         <div className="p-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center font-bold text-sm">
-              PZ
+          <div className="flex items-center gap-3">
+            <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center p-1.5">
+              <img src={logoAsset.url} alt="Fundação São Francisco de Seguridade Social" className="h-full w-full object-contain" />
             </div>
             <div>
               <h1 className="text-base font-bold leading-tight">EVSHIFT</h1>
