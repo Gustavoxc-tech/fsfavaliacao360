@@ -198,6 +198,17 @@ function CollaboratorResults() {
     }));
   }, [byComp]);
 
+  const scatterData = useMemo(() => {
+    let atitudes = 0;
+    let habilidades = 0;
+    for (const d of dimensionData) {
+      const dim = d.dimension.toLowerCase();
+      if (dim.includes("atitude")) atitudes = d.nota;
+      if (dim.includes("habilidade")) habilidades = d.nota;
+    }
+    return [{ name: "Avaliado", atitudes, habilidades }];
+  }, [dimensionData]);
+
   // Metas: calculado direto de goals + goal_categories (tabelas simples, sem
   // depender de nenhuma view), no mesmo critério usado no restante do sistema:
   // % de alcance = obtido / esperado, ponderado pelo peso de cada categoria.
