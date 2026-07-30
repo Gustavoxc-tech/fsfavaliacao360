@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="h-16 w-16 shrink-0 rounded-xl bg-card grid place-items-center p-1.5">
+            <div className="h-24 w-24 shrink-0 rounded-xl bg-transparent grid place-items-center p-1.5">
               <img src={logoAsset.url} alt="Fundação São Francisco de Seguridade Social" className="h-full w-full object-contain" />
             </div>
             <div>
