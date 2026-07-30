@@ -73,7 +73,7 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>PeopleZenith</CardTitle>
+          <CardTitle>EVSHIFT</CardTitle>
           <CardDescription>
             {passwordRecovery ? "Defina sua nova senha para continuar." : "Entre com a sua conta corporativa."}
           </CardDescription>
