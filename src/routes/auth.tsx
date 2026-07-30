@@ -73,7 +73,10 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
+        <CardHeader className="flex flex-col items-center text-center">
+          <div className="h-28 w-28 mb-3">
+            <img src={logoAsset.url} alt="Fundação São Francisco de Seguridade Social" className="h-full w-full object-contain" />
+          </div>
           <CardTitle>EVSHIFT</CardTitle>
           <CardDescription>
             {passwordRecovery ? "Defina sua nova senha para continuar." : "Entre com a sua conta corporativa."}
