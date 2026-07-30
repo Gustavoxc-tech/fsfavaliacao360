@@ -9,15 +9,18 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ResponsiveContainer,
   RadialBarChart,
   RadialBar,
   PolarAngleAxis as PolarAxis2,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import type {
   Person,
@@ -133,6 +136,18 @@ export function PersonProfileDrawer({
       nota: g.count ? g.total / g.count : 0,
     }));
   }, [byComp]);
+
+  // LÓGICA NOVA: Transforma os dados para a Matriz (Eixo X = Habilidades, Eixo Y = Atitudes)
+  const scatterData = useMemo(() => {
+    let atitudes = 0;
+    let habilidades = 0;
+    dimensionData.forEach((d) => {
+      const dim = d.dimension.toLowerCase();
+      if (dim.includes("atitude")) atitudes = d.nota;
+      if (dim.includes("habilidade")) habilidades = d.nota;
+    });
+    return [{ name: "Avaliado", atitudes, habilidades }];
+  }, [dimensionData]);
 
   const finalScore = overall?.overall_final_score ?? null;
   const radialData = [
@@ -301,27 +316,62 @@ export function PersonProfileDrawer({
                   )}
                 </div>
 
+                {/* NOVO GRÁFICO: Matriz de Quadrantes (ScatterChart) */}
                 {dimensionData.length > 0 ? (
                   <div className="rounded-lg border bg-card p-4">
-                    <div className="text-xs text-muted-foreground mb-2">
-                      Atitudes vs Habilidades
+                    <div className="text-xs text-muted-foreground mb-4 font-medium">
+                      Matriz Atitudes vs Habilidades
                     </div>
-                    <div className="h-56">
+                    <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={dimensionData}>
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="dimension" />
-                          <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
-                          <Radar
-                            dataKey="nota"
-                            stroke="var(--primary)"
-                            fill="var(--primary)"
-                            fillOpacity={0.35}
-                            isAnimationActive
-                            animationDuration={800}
+                        <ScatterChart margin={{ top: 10, right: 15, bottom: 20, left: -20 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          
+                          <XAxis 
+                            type="number" 
+                            dataKey="habilidades" 
+                            name="Habilidades" 
+                            domain={[0, 5]} 
+                            tickCount={6} 
+                            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} 
                           />
-                        </RadarChart>
+                          <YAxis 
+                            type="number" 
+                            dataKey="atitudes" 
+                            name="Atitudes" 
+                            domain={[0, 5]} 
+                            tickCount={6} 
+                            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} 
+                          />
+                          
+                          <Tooltip
+                            cursor={{ strokeDasharray: '3 3' }}
+                            formatter={(value: number, name: string) => [`${value.toFixed(2)}`, name]}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '12px' }}
+                          />
+
+                          {/* Zonas Coloridas */}
+                          <ReferenceArea x1={0} x2={2.5} y1={0} y2={2.5} fill="#fee2e2" fillOpacity={0.4} />
+                          <ReferenceArea x1={2.5} x2={5} y1={0} y2={2.5} fill="#fef08a" fillOpacity={0.3} />
+                          <ReferenceArea x1={0} x2={2.5} y1={2.5} y2={5} fill="#bfdbfe" fillOpacity={0.3} />
+                          <ReferenceArea x1={2.5} x2={5} y1={2.5} y2={5} fill="#bbf7d0" fillOpacity={0.4} />
+                          
+                          {/* Linhas Divisórias */}
+                          <ReferenceLine x={2.5} stroke="hsl(var(--muted-foreground))" opacity={0.5} />
+                          <ReferenceLine y={2.5} stroke="hsl(var(--muted-foreground))" opacity={0.5} />
+                          
+                          {/* Ponto do Colaborador */}
+                          <Scatter name="Colaborador" data={scatterData} fill="var(--primary)" shape="circle" r={8} />
+                        </ScatterChart>
                       </ResponsiveContainer>
+                    </div>
+                    
+                    {/* Legenda Opcional para o Contexto de Cores */}
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-green-200 rounded-sm"></span> Alto Desempenho</div>
+                      <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-blue-200 rounded-sm"></span> Treinar Habilidades</div>
+                      <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-yellow-200 rounded-sm"></span> Foco em Atitudes</div>
+                      <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-200 rounded-sm"></span> Zona de Risco</div>
                     </div>
                   </div>
                 ) : (
