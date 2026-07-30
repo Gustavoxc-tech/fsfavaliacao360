@@ -30,29 +30,41 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* NOVA ESTRUTURA CORRIGIDA: Contêiner de cabeçalho da sidebar alinhado à esquerda */}
         {/* CORREÇÃO: items-start em vez de items-center */}
         <div className="p-6 space-y-4 border-b border-sidebar-border flex flex-col items-start">
-          
           {/* BLOCO DA LOGO E TEXTO (Alinhado à esquerda) */}
           {/* CORREÇÃO: justify-start em vez de justify-center */}
           <div className="flex items-center gap-3 w-full justify-start">
             <div className="h-25 w-25 shrink-0 rounded-xl bg-transparent grid place-items-center p-1.5">
-              <img src={logoAsset.url} alt="Fundação São Francisco de Seguridade Social" className="h-full w-full object-contain" />
+              <img
+                src={logoAsset.url}
+                alt="Fundação São Francisco de Seguridade Social"
+                className="h-full w-full object-contain"
+              />
             </div>
             {/* CORREÇÃO: text-left em vez de text-center */}
-            <div className="text-left"> 
+            <div className="text-left">
               <h1 className="text-base font-bold leading-tight">EVSHIFT</h1>
-              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Sua jornada em movimento</p>
+              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">
+                Sua jornada em movimento
+              </p>
             </div>
           </div>
-          
+
           {/* BLOCO DA PESSOA */}
           {person && (
-            {/* CORREÇÃO: justify-start e removido mt-4 para usar o space-y-4 do contêiner pai */}
+            // CORREÇÃO: justify-start e removido mt-4 para usar o space-y-4 do contêiner pai
             <div className="flex items-center gap-3 w-full justify-start">
               {/* Forçamos classes fixas de tamanho (h-12 w-12) para que o 'G' tenha um centro claro com o qual alinhar */}
-              <PersonAvatar name={person.full_name} url={(person as any).avatar_url} size="md" className="h-12 w-12 rounded-full" />
+              <PersonAvatar
+                name={person.full_name}
+                url={(person as any).avatar_url}
+                size="md"
+                className="h-12 w-12 rounded-full"
+              />
               <div className="min-w-0 text-sm">
                 <div className="font-medium truncate">{person.full_name}</div>
-                <div className="text-xs text-sidebar-foreground/60 truncate">{person.job_title ?? "—"}</div>
+                <div className="text-xs text-sidebar-foreground/60 truncate">
+                  {person.job_title ?? "—"}
+                </div>
               </div>
             </div>
           )}
