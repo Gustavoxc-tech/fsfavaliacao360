@@ -9,6 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Users, Target } from "lucide-react";
 import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarRadiusAxis,
   ResponsiveContainer,
   BarChart,
   Bar,
