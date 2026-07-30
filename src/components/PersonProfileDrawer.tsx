@@ -137,7 +137,7 @@ export function PersonProfileDrawer({
     }));
   }, [byComp]);
 
-  // LÓGICA NOVA: Transforma os dados para a Matriz (Eixo X = Habilidades, Eixo Y = Atitudes)
+  // Transformação dos dados para a Matriz de Quadrantes (Scatter Chart)
   const scatterData = useMemo(() => {
     let atitudes = 0;
     let habilidades = 0;
@@ -146,7 +146,7 @@ export function PersonProfileDrawer({
       if (dim.includes("atitude")) atitudes = d.nota;
       if (dim.includes("habilidade")) habilidades = d.nota;
     });
-    return [{ name: "Avaliado", atitudes, habilidades }];
+    return [{ name: "Colaborador", atitudes, habilidades }];
   }, [dimensionData]);
 
   const finalScore = overall?.overall_final_score ?? null;
@@ -316,7 +316,7 @@ export function PersonProfileDrawer({
                   )}
                 </div>
 
-                {/* NOVO GRÁFICO: Matriz de Quadrantes (ScatterChart) */}
+                {/* NOVO BLOCO: MATRIZ DE QUADRANTES */}
                 {dimensionData.length > 0 ? (
                   <div className="rounded-lg border bg-card p-4">
                     <div className="text-xs text-muted-foreground mb-4 font-medium">
@@ -366,7 +366,7 @@ export function PersonProfileDrawer({
                       </ResponsiveContainer>
                     </div>
                     
-                    {/* Legenda Opcional para o Contexto de Cores */}
+                    {/* Legenda */}
                     <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
                       <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-green-200 rounded-sm"></span> Alto Desempenho</div>
                       <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-blue-200 rounded-sm"></span> Treinar Habilidades</div>
