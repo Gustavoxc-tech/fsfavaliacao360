@@ -27,12 +27,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
-        {/* NOVA ESTRUTURA CORRIGIDA: Contêiner de cabeçalho da sidebar alinhado à esquerda */}
-        {/* CORREÇÃO: items-start em vez de items-center */}
-        <div className="p-6 space-y-4 border-b border-sidebar-border flex flex-col items-start">
-          {/* BLOCO DA LOGO E TEXTO (Alinhado à esquerda) */}
-          {/* CORREÇÃO: justify-start em vez de justify-center */}
+        {/* Contêiner de cabeçalho da sidebar com items-start para alinhar todos os filhos à esquerda por padrão */}
+        <div className="p-6 border-b border-sidebar-border flex flex-col items-start space-y-4">
+          {/* BLOCO DA LOGO E NOME DA EMPRESA (Alinhado à esquerda) */}
+          {/* justify-start e text-left garantem que o conteúdo permaneça na borda esquerda */}
           <div className="flex items-center gap-3 w-full justify-start">
+            {/* O container da logo mantém a centralização interna para a imagem, mas o container em si é empurrado para a esquerda */}
             <div className="h-25 w-25 shrink-0 rounded-xl bg-transparent grid place-items-center p-1.5">
               <img
                 src={logoAsset.url}
@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="h-full w-full object-contain"
               />
             </div>
-            {/* CORREÇÃO: text-left em vez de text-center */}
+            {/* text-left garante que o nome e subtítulo estejam alinhados à esquerda */}
             <div className="text-left">
               <h1 className="text-base font-bold leading-tight">EVSHIFT</h1>
               <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">
@@ -51,16 +51,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* BLOCO DA PESSOA */}
           {person && (
-            // CORREÇÃO: justify-start e removido mt-4 para usar o space-y-4 do contêiner pai
-            <div className="flex items-center gap-3 w-full justify-start">
-              {/* Forçamos classes fixas de tamanho (h-12 w-12) para que o 'G' tenha um centro claro com o qual alinhar */}
+            {/* CORREÇÃO: justify-center em vez de justify-start para centralizar horizontalmente o bloco da pessoa */}
+            <div className="flex items-center gap-3 w-full justify-center">
               <PersonAvatar
                 name={person.full_name}
                 url={(person as any).avatar_url}
                 size="md"
                 className="h-12 w-12 rounded-full"
               />
-              <div className="min-w-0 text-sm">
+              {/* CORREÇÃO: text-center em vez de text-left para centralizar o nome e cargo dentro do bloco */}
+              <div className="min-w-0 text-sm text-center">
                 <div className="font-medium truncate">{person.full_name}</div>
                 <div className="text-xs text-sidebar-foreground/60 truncate">
                   {person.job_title ?? "—"}
