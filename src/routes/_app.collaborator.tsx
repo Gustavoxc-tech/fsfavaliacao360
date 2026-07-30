@@ -9,11 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Users, Target } from "lucide-react";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -24,6 +19,11 @@ import {
   CartesianGrid,
   RadialBarChart,
   RadialBar,
+  PolarAngleAxis,
+  ScatterChart,
+  Scatter,
+  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import type {
   VCompetencyResult,
