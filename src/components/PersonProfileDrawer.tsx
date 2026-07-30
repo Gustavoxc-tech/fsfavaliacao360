@@ -211,7 +211,7 @@ export function PersonProfileDrawer({
           <div className="mt-6 space-y-6 animate-in fade-in-50 duration-200">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <PersonAvatar name={person.full_name} url={person.avatar_url} size="xl" />
+                <PersonAvatar name={person.full_name} url={localAvatar ?? person.avatar_url} size="xl" />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
