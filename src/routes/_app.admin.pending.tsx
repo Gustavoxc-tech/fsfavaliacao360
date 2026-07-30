@@ -84,7 +84,8 @@ function AdminPending() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {pending.map((a) => {
           const person = peopleMap.get(a.evaluatee_id) ?? null;
-          const pct = Math.round((a.pct_complete ?? 0) * 100);
+          // pct_complete já vem em escala 0-100 da view — não multiplicar de novo
+          const pct = Math.round(a.pct_complete ?? 0);
           return (
             <div
               key={a.assignment_id}
