@@ -12,7 +12,6 @@ import {
   Radar,
   RadarChart,
   PolarGrid,
-  PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
   BarChart,
@@ -24,6 +23,11 @@ import {
   CartesianGrid,
   RadialBarChart,
   RadialBar,
+  PolarAngleAxis,
+  ScatterChart,
+  Scatter,
+  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import type {
   VCompetencyResult,
@@ -194,6 +198,17 @@ function CollaboratorResults() {
     }));
   }, [byComp]);
 
+  const scatterData = useMemo(() => {
+    let atitudes = 0;
+    let habilidades = 0;
+    for (const d of dimensionData) {
+      const dim = d.dimension.toLowerCase();
+      if (dim.includes("atitude")) atitudes = d.nota;
+      if (dim.includes("habilidade")) habilidades = d.nota;
+    }
+    return [{ name: "Avaliado", atitudes, habilidades }];
+  }, [dimensionData]);
+
   // Metas: calculado direto de goals + goal_categories (tabelas simples, sem
   // depender de nenhuma view), no mesmo critério usado no restante do sistema:
   // % de alcance = obtido / esperado, ponderado pelo peso de cada categoria.
@@ -297,18 +312,53 @@ function CollaboratorResults() {
 
               <Card className="card-hover">
                 <CardHeader><CardTitle>Atitudes vs Habilidades</CardTitle></CardHeader>
-                <CardContent style={{ height: 320 }}>
+                <CardContent>
                   {dimensionData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={dimensionData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="dimension" />
-                        <PolarRadiusAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
-                        <Radar dataKey="nota" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.35} isAnimationActive animationDuration={800} />
-                      </RadarChart>
-                    </ResponsiveContainer>
+                    <>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ScatterChart margin={{ top: 10, right: 15, bottom: 20, left: -10 }}>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                            <XAxis
+                              type="number"
+                              dataKey="habilidades"
+                              name="Habilidades"
+                              domain={[0, 5]}
+                              tickCount={6}
+                              tick={{ fontSize: 10 }}
+                            />
+                            <YAxis
+                              type="number"
+                              dataKey="atitudes"
+                              name="Atitudes"
+                              domain={[0, 5]}
+                              tickCount={6}
+                              tick={{ fontSize: 10 }}
+                            />
+                            <Tooltip
+                              cursor={{ strokeDasharray: "3 3" }}
+                              formatter={(value: number, name: string) => [Number(value).toFixed(2), name]}
+                              contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
+                            />
+                            <ReferenceArea x1={0} x2={2.5} y1={0} y2={2.5} fill="#fee2e2" fillOpacity={0.5} />
+                            <ReferenceArea x1={2.5} x2={5} y1={0} y2={2.5} fill="#fef08a" fillOpacity={0.4} />
+                            <ReferenceArea x1={0} x2={2.5} y1={2.5} y2={5} fill="#bfdbfe" fillOpacity={0.4} />
+                            <ReferenceArea x1={2.5} x2={5} y1={2.5} y2={5} fill="#bbf7d0" fillOpacity={0.5} />
+                            <ReferenceLine x={2.5} stroke="var(--muted-foreground)" opacity={0.5} />
+                            <ReferenceLine y={2.5} stroke="var(--muted-foreground)" opacity={0.5} />
+                            <Scatter name="Avaliado" data={scatterData} fill="var(--primary)" shape="circle" r={9} />
+                          </ScatterChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-200" /> Alto desempenho</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-200" /> Treinar habilidades</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-200" /> Foco em atitudes</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-200" /> Zona de risco</div>
+                      </div>
+                    </>
                   ) : (
-                    <div className="h-full grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
+                    <div className="h-64 grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
                   )}
                 </CardContent>
               </Card>
