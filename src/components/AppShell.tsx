@@ -27,19 +27,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
+        {/* NOVA ESTRUTURA: Um contêiner Flexbox vertical que centraliza tudo */}
+        <div className="p-6 space-y-4 border-b border-sidebar-border flex flex-col items-center">
+          
+          {/* BLOCO DA LOGO E TEXTO (Centralizado verticalmente e horizontalmente) */}
+          <div className="flex items-center gap-3 w-full justify-center">
             <div className="h-25 w-25 shrink-0 rounded-xl bg-transparent grid place-items-center p-1.5">
               <img src={logoAsset.url} alt="Fundação São Francisco de Seguridade Social" className="h-full w-full object-contain" />
             </div>
-            <div>
+            <div className="text-center"> {/* Alinhamento de texto centralizado */}
               <h1 className="text-base font-bold leading-tight">EVSHIFT</h1>
               <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Sua jornada em movimento</p>
             </div>
           </div>
+          
+          {/* BLOCO DA PESSOA */}
           {person && (
-            <div className="mt-4 flex items-center gap-3">
-              <PersonAvatar name={person.full_name} url={(person as any).avatar_url} size="md" />
+            <div className="flex items-center gap-3 w-full justify-center">
+              {/* Forçamos classes fixas de tamanho (h-12 w-12) para que o 'G' tenha um centro claro com o qual alinhar */}
+              <PersonAvatar name={person.full_name} url={(person as any).avatar_url} size="md" className="h-12 w-12 rounded-full" />
               <div className="min-w-0 text-sm">
                 <div className="font-medium truncate">{person.full_name}</div>
                 <div className="text-xs text-sidebar-foreground/60 truncate">{person.job_title ?? "—"}</div>
