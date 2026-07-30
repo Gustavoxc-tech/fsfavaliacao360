@@ -161,6 +161,11 @@ export function PersonProfileDrawer({
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalAvatar(null);
+  }, [person?.id, open]);
 
   const uploadAvatar = async (file: File) => {
     if (!person) return;
@@ -175,20 +180,25 @@ export function PersonProfileDrawer({
       });
       if (error) throw error;
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-      const { error: upErr } = await supabase
+      const publicUrl = `${pub.publicUrl}?v=${Date.now()}`;
+      const { data: updated, error: upErr } = await supabase
         .from("people")
         .update({ avatar_url: pub.publicUrl })
-        .eq("id", person.id);
+        .eq("id", person.id)
+        .select("id, avatar_url")
+        .maybeSingle();
       if (upErr) throw upErr;
+      if (!updated) throw new Error("Não foi possível atualizar a foto (permissão negada).");
+      setLocalAvatar(publicUrl);
       toast.success("Foto atualizada");
-      qc.invalidateQueries({ queryKey: ["all-people"] });
-      qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries();
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao enviar imagem");
     } finally {
       setUploading(false);
     }
   };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -201,7 +211,7 @@ export function PersonProfileDrawer({
           <div className="mt-6 space-y-6 animate-in fade-in-50 duration-200">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <PersonAvatar name={person.full_name} url={person.avatar_url} size="xl" />
+                <PersonAvatar name={person.full_name} url={localAvatar ?? person.avatar_url} size="xl" />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}

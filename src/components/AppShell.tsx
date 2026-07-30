@@ -51,16 +51,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* BLOCO DA PESSOA */}
           {person && (
-            {/* CORREÇÃO: justify-center em vez de justify-start para centralizar horizontalmente o bloco da pessoa */}
-            <div className="flex items-center gap-3 w-full justify-center">
+            <div className="flex items-center gap-3 w-full justify-start">
               <PersonAvatar
                 name={person.full_name}
                 url={(person as any).avatar_url}
                 size="md"
                 className="h-12 w-12 rounded-full"
               />
-              {/* CORREÇÃO: text-center em vez de text-left para centralizar o nome e cargo dentro do bloco */}
-              <div className="min-w-0 text-sm text-center">
+              <div className="min-w-0 text-sm text-left">
                 <div className="font-medium truncate">{person.full_name}</div>
                 <div className="text-xs text-sidebar-foreground/60 truncate">
                   {person.job_title ?? "—"}
