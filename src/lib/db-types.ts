@@ -43,6 +43,7 @@ export interface Person {
   diretoria: Diretoria | null;
   avatar_url: string | null;
   auth_user_id: string | null;
+  must_change_password?: boolean | null;
   is_active: boolean;
 }
  
