@@ -44,6 +44,24 @@ export const Route = createFileRoute("/_app/collaborator")({
 
 type TabKey = "dashboard" | "competencies" | "goals";
 
+// Nine Box: divide os eixos (0 a 5) em 3 faixas iguais — Baixo / Médio / Alto
+const NINE_BOX_T1 = 5 / 3; // ~1.67
+const NINE_BOX_T2 = 10 / 3; // ~3.33
+const NINE_BOX_CELLS = [
+  // linha de cima (Atitudes alta)
+  { x1: 0, x2: NINE_BOX_T1, y1: NINE_BOX_T2, y2: 5, fill: "#bfdbfe", label: "Potencial" },
+  { x1: NINE_BOX_T1, x2: NINE_BOX_T2, y1: NINE_BOX_T2, y2: 5, fill: "#a7f3d0", label: "Em ascensão" },
+  { x1: NINE_BOX_T2, x2: 5, y1: NINE_BOX_T2, y2: 5, fill: "#86efac", label: "Alto desempenho" },
+  // linha do meio
+  { x1: 0, x2: NINE_BOX_T1, y1: NINE_BOX_T1, y2: NINE_BOX_T2, fill: "#fed7aa", label: "Desenvolver" },
+  { x1: NINE_BOX_T1, x2: NINE_BOX_T2, y1: NINE_BOX_T1, y2: NINE_BOX_T2, fill: "#e2e8f0", label: "Consistente" },
+  { x1: NINE_BOX_T2, x2: 5, y1: NINE_BOX_T1, y2: NINE_BOX_T2, fill: "#d9f99d", label: "Técnico forte" },
+  // linha de baixo (Atitudes baixa)
+  { x1: 0, x2: NINE_BOX_T1, y1: 0, y2: NINE_BOX_T1, fill: "#fecaca", label: "Zona de risco" },
+  { x1: NINE_BOX_T1, x2: NINE_BOX_T2, y1: 0, y2: NINE_BOX_T1, fill: "#fde68a", label: "Atenção" },
+  { x1: NINE_BOX_T2, x2: 5, y1: 0, y2: NINE_BOX_T1, fill: "#fef08a", label: "Foco em atitudes" },
+] as const;
+
 function CollaboratorResults() {
   const { person } = useAuth();
   const [tab, setTab] = useState<TabKey>("dashboard");
@@ -311,52 +329,52 @@ function CollaboratorResults() {
               </Card>
 
               <Card className="card-hover">
-                <CardHeader><CardTitle>Atitudes vs Habilidades</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Atitudes vs Habilidades (Nine Box)</CardTitle></CardHeader>
                 <CardContent>
                   {dimensionData.length > 0 ? (
-                    <>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ScatterChart margin={{ top: 10, right: 15, bottom: 20, left: -10 }}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                            <XAxis
-                              type="number"
-                              dataKey="habilidades"
-                              name="Habilidades"
-                              domain={[0, 5]}
-                              tickCount={6}
-                              tick={{ fontSize: 10 }}
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 15, bottom: 30, left: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                          <XAxis
+                            type="number"
+                            dataKey="habilidades"
+                            name="Habilidades"
+                            domain={[0, 5]}
+                            tickCount={6}
+                            tick={{ fontSize: 10 }}
+                            label={{ value: "Habilidades", position: "insideBottom", offset: -10, fontSize: 12, fill: "var(--foreground)" }}
+                          />
+                          <YAxis
+                            type="number"
+                            dataKey="atitudes"
+                            name="Atitudes"
+                            domain={[0, 5]}
+                            tickCount={6}
+                            tick={{ fontSize: 10 }}
+                            label={{ value: "Atitudes", angle: -90, position: "insideLeft", offset: 5, fontSize: 12, fill: "var(--foreground)" }}
+                          />
+                          <Tooltip
+                            cursor={{ strokeDasharray: "3 3" }}
+                            formatter={(value: number, name: string) => [Number(value).toFixed(2), name]}
+                            contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
+                          />
+                          {NINE_BOX_CELLS.map((cell) => (
+                            <ReferenceArea
+                              key={cell.label}
+                              x1={cell.x1} x2={cell.x2} y1={cell.y1} y2={cell.y2}
+                              fill={cell.fill} fillOpacity={0.5}
+                              label={{ value: cell.label, position: "center", fontSize: 8.5, fill: "#334155" }}
                             />
-                            <YAxis
-                              type="number"
-                              dataKey="atitudes"
-                              name="Atitudes"
-                              domain={[0, 5]}
-                              tickCount={6}
-                              tick={{ fontSize: 10 }}
-                            />
-                            <Tooltip
-                              cursor={{ strokeDasharray: "3 3" }}
-                              formatter={(value: number, name: string) => [Number(value).toFixed(2), name]}
-                              contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
-                            />
-                            <ReferenceArea x1={0} x2={2.5} y1={0} y2={2.5} fill="#fee2e2" fillOpacity={0.5} />
-                            <ReferenceArea x1={2.5} x2={5} y1={0} y2={2.5} fill="#fef08a" fillOpacity={0.4} />
-                            <ReferenceArea x1={0} x2={2.5} y1={2.5} y2={5} fill="#bfdbfe" fillOpacity={0.4} />
-                            <ReferenceArea x1={2.5} x2={5} y1={2.5} y2={5} fill="#bbf7d0" fillOpacity={0.5} />
-                            <ReferenceLine x={2.5} stroke="var(--muted-foreground)" opacity={0.5} />
-                            <ReferenceLine y={2.5} stroke="var(--muted-foreground)" opacity={0.5} />
-                            <Scatter name="Avaliado" data={scatterData} fill="var(--primary)" shape="circle" r={9} />
-                          </ScatterChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-200" /> Alto desempenho</div>
-                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-200" /> Treinar habilidades</div>
-                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-200" /> Foco em atitudes</div>
-                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-200" /> Zona de risco</div>
-                      </div>
-                    </>
+                          ))}
+                          <ReferenceLine x={NINE_BOX_T1} stroke="var(--muted-foreground)" opacity={0.4} />
+                          <ReferenceLine x={NINE_BOX_T2} stroke="var(--muted-foreground)" opacity={0.4} />
+                          <ReferenceLine y={NINE_BOX_T1} stroke="var(--muted-foreground)" opacity={0.4} />
+                          <ReferenceLine y={NINE_BOX_T2} stroke="var(--muted-foreground)" opacity={0.4} />
+                          <Scatter name="Avaliado" data={scatterData} fill="var(--primary)" shape="circle" r={9} />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
                   ) : (
                     <div className="h-64 grid place-items-center text-sm text-muted-foreground">Ainda sem dados neste ciclo.</div>
                   )}
