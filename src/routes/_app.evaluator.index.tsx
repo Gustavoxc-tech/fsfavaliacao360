@@ -27,7 +27,7 @@ const EVALUATOR_TYPE_INFO: Record<string, { short: string; full: string }> = {
   },
   pares: {
     short: "Você está avaliando como Par — colega que trabalha com essa pessoa.",
-    full: "Pares: colegas do mesmo nível hierárquico que trabalham lado a lado com a pessoa avaliada.",
+    full: "Pares: colegas que trabalham lado a lado com a pessoa avaliada.",
   },
   subordinados: {
     short: "Você está avaliando como Subordinado(a) desta pessoa.",
