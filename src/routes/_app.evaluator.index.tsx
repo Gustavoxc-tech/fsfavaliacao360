@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PersonAvatar } from "@/components/PersonAvatar";
-import { CalendarClock, CalendarCheck2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarClock, CalendarCheck2, HelpCircle } from "lucide-react";
 import type { VAssignmentProgress, EvaluationCycle } from "@/lib/db-types";
 
 export const Route = createFileRoute("/_app/evaluator/")({
@@ -16,6 +17,27 @@ export const Route = createFileRoute("/_app/evaluator/")({
 
 // Pendente/Em Andamento primeiro (precisam de ação), Concluída por último
 const STATUS_ORDER: Record<string, number> = { pending: 0, in_progress: 1, completed: 2 };
+
+// Frase explicativa de cada tipo de avaliador, para não deixar dúvida sobre o
+// papel que a pessoa está exercendo naquela avaliação específica.
+const EVALUATOR_TYPE_INFO: Record<string, { short: string; full: string }> = {
+  gestor: {
+    short: "Você está avaliando como Gestor(a) desta pessoa.",
+    full: "Gestor: quem lidera diretamente essa pessoa no dia a dia de trabalho.",
+  },
+  pares: {
+    short: "Você está avaliando como Par — colega que trabalha com essa pessoa.",
+    full: "Pares: colegas do mesmo nível hierárquico que trabalham lado a lado com a pessoa avaliada.",
+  },
+  subordinados: {
+    short: "Você está avaliando como Subordinado(a) desta pessoa.",
+    full: "Subordinados: pessoas lideradas diretamente pelo avaliado, avaliando a liderança dele(a).",
+  },
+  autoavaliacao: {
+    short: "Esta é a sua Autoavaliação.",
+    full: "Autoavaliação: a própria pessoa avaliando o seu desempenho.",
+  },
+};
 
 function EvaluatorList() {
   const { person } = useAuth();
@@ -79,9 +101,26 @@ function EvaluatorList() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Minhas Avaliações</h1>
-        <p className="text-sm text-muted-foreground">Avaliações atribuídas a você nos ciclos ativos.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Minhas Avaliações</h1>
+          <p className="text-sm text-muted-foreground">Avaliações atribuídas a você nos ciclos ativos.</p>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground shrink-0">
+              <HelpCircle className="h-4 w-4 mr-1" /> O que significa cada papel?
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <p className="text-sm font-semibold mb-2">Papéis de avaliador</p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              {Object.values(EVALUATOR_TYPE_INFO).map((info) => (
+                <li key={info.full}>{info.full}</li>
+              ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
@@ -97,6 +136,7 @@ function EvaluatorList() {
       <div className="grid gap-4">
         {sorted.map((a) => {
           const cycle = cycleById(a.cycle_id);
+          const roleInfo = EVALUATOR_TYPE_INFO[a.evaluator_type_code];
           const goToAssignment = () =>
             navigate({ to: "/evaluator/$assignmentId", params: { assignmentId: a.assignment_id } });
 
@@ -112,7 +152,9 @@ function EvaluatorList() {
                   <div>
                     <CardTitle className="text-base">{a.evaluatee_name}</CardTitle>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Você como <strong>{a.evaluator_type_label}</strong>
+                      {roleInfo?.short ?? (
+                        <>Você como <strong>{a.evaluator_type_label}</strong></>
+                      )}
                     </p>
                     {cycle && (
                       <p className="text-xs text-muted-foreground mt-0.5">{cycle.name}</p>
