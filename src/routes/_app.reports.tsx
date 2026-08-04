@@ -486,7 +486,7 @@ function ReportsPage() {
 
       <Card>
         <CardContent className="py-6">
-          <Table>
+          <Table data-tour="reports-table">
             <TableHeader>
               <TableRow>
                 <TableHead>Avaliado</TableHead>
