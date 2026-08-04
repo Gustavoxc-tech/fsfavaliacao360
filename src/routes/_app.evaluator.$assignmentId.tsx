@@ -222,7 +222,7 @@ function EvaluationForm() {
       </Card>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4" data-tour="assignment-tabs">
           <TabsTrigger value="competencies"><Users className="h-4 w-4 mr-1" />Avaliação 360°</TabsTrigger>
           <TabsTrigger value="goals"><Target className="h-4 w-4 mr-1" />Metas</TabsTrigger>
           <TabsTrigger value="academic"><GraduationCap className="h-4 w-4 mr-1" />Qualificações</TabsTrigger>

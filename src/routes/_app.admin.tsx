@@ -42,6 +42,7 @@ function AdminLayout() {
             <Link
               key={t.to}
               to={t.to}
+              data-tour={`admin-tab-${t.to}`}
               className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
                 active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}

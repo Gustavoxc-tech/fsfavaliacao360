@@ -133,7 +133,7 @@ function EvaluatorList() {
         </Card>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-4" data-tour="eval-list">
         {sorted.map((a) => {
           const cycle = cycleById(a.cycle_id);
           const roleInfo = EVALUATOR_TYPE_INFO[a.evaluator_type_code];
@@ -143,6 +143,8 @@ function EvaluatorList() {
           return (
             <Card
               key={a.assignment_id}
+              data-tour="eval-card"
+              data-assignment-id={a.assignment_id}
               className="cursor-pointer transition-shadow hover:shadow-md"
               onClick={goToAssignment}
             >
@@ -161,7 +163,7 @@ function EvaluatorList() {
                     )}
                   </div>
                 </div>
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-1" data-tour="eval-status">
                   {statusBadge(a.status)}
                   {a.status === "completed" && a.submitted_at && (
                     <p className="text-[11px] text-muted-foreground flex items-center justify-end gap-1">
@@ -179,6 +181,7 @@ function EvaluatorList() {
                 <Button
                   type="button"
                   size="sm"
+                  data-tour="eval-action"
                   variant={a.status === "completed" ? "outline" : "default"}
                   onClick={(e) => {
                     e.stopPropagation();

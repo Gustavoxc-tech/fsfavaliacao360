@@ -525,7 +525,7 @@ function ReportsPage() {
                         <span className="text-xs w-10 text-right">{pct}%</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" data-tour="report-export">
                       <div className="flex gap-1 justify-end">
                         <Button size="sm" variant="outline" onClick={() => exportXLSX(f)} disabled={exporting === `xlsx-${f.evaluatee_id}`}>
                           <Download className="h-3 w-3 mr-1" /> Excel
