@@ -293,7 +293,7 @@ function CollaboratorResults() {
 
       {final && (
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3" data-tour="results-tabs">
             <TabsTrigger value="dashboard"><LayoutDashboard className="h-4 w-4 mr-1" />Dashboard</TabsTrigger>
             <TabsTrigger value="competencies"><Users className="h-4 w-4 mr-1" />Avaliação 360°</TabsTrigger>
             <TabsTrigger value="goals"><Target className="h-4 w-4 mr-1" />Metas</TabsTrigger>
