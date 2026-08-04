@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ClipboardList, BarChart3, Settings, FileText } from "lucide-react";
+import { LogOut, ClipboardList, BarChart3, Settings, FileText, HelpCircle } from "lucide-react";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { useGuidedTour } from "@/components/GuidedTour";
 import logoAsset from "@/assets/fsfss-logo.png.asset.json";
 import type { ReactNode } from "react";
 
@@ -11,14 +12,16 @@ interface NavItem {
   label: string;
   icon: ReactNode;
   adminOnly?: boolean;
+  tour: string;
 }
 
 const items: NavItem[] = [
-  { to: "/evaluator", label: "Avaliações", icon: <ClipboardList className="h-4 w-4" /> },
-  { to: "/collaborator", label: "Meus Resultados", icon: <BarChart3 className="h-4 w-4" /> },
-  { to: "/admin", label: "Admin", icon: <Settings className="h-4 w-4" />, adminOnly: true },
-  { to: "/reports", label: "Relatórios", icon: <FileText className="h-4 w-4" />, adminOnly: true },
+  { to: "/evaluator", label: "Avaliações", icon: <ClipboardList className="h-4 w-4" />, tour: "nav-evaluator" },
+  { to: "/collaborator", label: "Meus Resultados", icon: <BarChart3 className="h-4 w-4" />, tour: "nav-collaborator" },
+  { to: "/admin", label: "Admin", icon: <Settings className="h-4 w-4" />, adminOnly: true, tour: "nav-admin" },
+  { to: "/reports", label: "Relatórios", icon: <FileText className="h-4 w-4" />, adminOnly: true, tour: "nav-reports" },
 ];
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { person, isAdmin, signOut } = useAuth();
