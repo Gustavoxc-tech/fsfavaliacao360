@@ -26,6 +26,8 @@ const items: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { person, isAdmin, signOut } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const startTour = useGuidedTour(!!isAdmin);
+
 
   return (
     <div className="flex min-h-screen bg-background">
