@@ -341,6 +341,25 @@ function ReportsPage() {
         }
       }
 
+      if (c.exam) {
+        ws.addRow([]);
+        const examTitle = ws.addRow(["Prova de Conhecimentos"]);
+        examTitle.getCell(1).font = { bold: true, size: 13, color: { argb: "FF" + BRAND.primaryHex } };
+        const examHeaderRow = ws.addRow(["Critério", "Nota (0-10)"]);
+        styleHeaderRow(examHeaderRow, 2);
+        const examItems: [string, number | null][] = [
+          ["Legislação do setor", c.exam.sector_legislation_score],
+          ["Legislação específica aplicável à função", c.exam.specific_legislation_score],
+          ["Normativos internos", c.exam.internal_norms_score],
+        ];
+        for (const [label, v] of examItems) {
+          const row = ws.addRow([label, numOrDash(v)]);
+          row.eachCell((cell) => (cell.border = THIN_BORDER));
+        }
+        const examFinal = ws.addRow(["Nota da prova (0-5)", c.examScore != null ? Number(c.examScore.toFixed(2)) : "—"]);
+        examFinal.font = { bold: true, color: { argb: "FF" + BRAND.primaryHex } };
+      }
+
       // ---- Aba 2: Metodologia ----
       const wsM = wb.addWorksheet("Metodologia de Cálculo");
       wsM.mergeCells("A1:B1");
@@ -349,11 +368,13 @@ function ReportsPage() {
       wsM.columns = [{ width: 26 }, { width: 100 }];
       const methodRows: [string, string][] = [
         ["1. Competências (60%)", METHOD_TEXT.competencies],
-        ["2. Metas (30%)", METHOD_TEXT.goals],
-        ["3. Qualificação Acadêmica (5%)", METHOD_TEXT.academic],
-        ["4. Certificações (5%)", METHOD_TEXT.certification],
+        ["2. Metas (20%)", METHOD_TEXT.goals],
+        ["3. Prova de Conhecimentos (10%)", METHOD_TEXT.exam],
+        ["4. Qualificação Acadêmica (5%)", METHOD_TEXT.academic],
+        ["5. Certificações (5%)", METHOD_TEXT.certification],
         ["Resultado Final Geral", METHOD_TEXT.overall],
       ];
+
       wsM.addRow([]);
       for (const [title, text] of methodRows) {
         const row = wsM.addRow([title, text]);
