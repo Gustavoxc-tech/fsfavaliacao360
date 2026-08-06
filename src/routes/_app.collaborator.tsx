@@ -453,7 +453,37 @@ function CollaboratorResults() {
                 </Table>
               </CardContent>
             </Card>
+
+            <Card className="card-hover">
+              <CardHeader><CardTitle>Prova de Conhecimentos</CardTitle></CardHeader>
+              <CardContent>
+                {exam ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Critério</TableHead>
+                        <TableHead className="text-right">Nota (0-10)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow><TableCell>Legislação do setor</TableCell><TableCell className="text-right">{fmt(exam.sector_legislation_score)}</TableCell></TableRow>
+                      <TableRow><TableCell>Legislação específica aplicável à função</TableCell><TableCell className="text-right">{fmt(exam.specific_legislation_score)}</TableCell></TableRow>
+                      <TableRow><TableCell>Normativos internos</TableCell><TableCell className="text-right">{fmt(exam.internal_norms_score)}</TableCell></TableRow>
+                      <TableRow className="border-t-2">
+                        <TableCell className="font-bold">Nota da prova (0-5)</TableCell>
+                        <TableCell className="text-right font-bold text-primary">{fmt(examScore)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhuma nota de Prova de Conhecimentos lançada neste ciclo.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
           {/* ----------------- AVALIAÇÃO 360° ----------------- */}
           <TabsContent value="competencies" className="mt-4 space-y-6">
