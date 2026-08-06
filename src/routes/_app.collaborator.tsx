@@ -294,18 +294,18 @@ function CollaboratorResults() {
 
   // Resultado consolidado final, ponderando apenas os blocos que já têm nota
   const competenciesScore = final?.final_result ?? null;
-  const overallFinalScore = useMemo(() => {
-    const parts = [
-      { score: competenciesScore, weight: competenciesWeight },
-      { score: goalsFinalScore, weight: goalsWeight },
-      { score: academicScore ?? null, weight: academicWeight },
-      { score: certificationScore ?? null, weight: certificationWeight },
-    ];
-    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
-    if (totalWeight <= 0) return null;
-    const totalWeighted = parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0);
-    return totalWeighted / totalWeight;
-  }, [competenciesScore, competenciesWeight, goalsFinalScore, goalsWeight, academicScore, academicWeight, certificationScore, certificationWeight]);
+  const overallFinalScore = useMemo(
+    () =>
+      weightedOverall([
+        { score: competenciesScore, weight: competenciesWeight },
+        { score: goalsFinalScore, weight: goalsWeight },
+        { score: examScore, weight: examWeight },
+        { score: academicScore ?? null, weight: academicWeight },
+        { score: certificationScore ?? null, weight: certificationWeight },
+      ]),
+    [competenciesScore, competenciesWeight, goalsFinalScore, goalsWeight, examScore, examWeight, academicScore, academicWeight, certificationScore, certificationWeight],
+  );
+
 
   const radialData = [{ name: "Final", value: overallFinalScore ?? 0, fill: "var(--primary)" }];
 
