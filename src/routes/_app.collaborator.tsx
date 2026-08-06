@@ -36,7 +36,11 @@ import type {
   Goal,
   GoalCategory,
   EvaluationWeightConfig,
+  KnowledgeExam,
+  KnowledgeExamWeightConfig,
 } from "@/lib/db-types";
+import { computeExamScore, weightedOverall, DEFAULT_BLOCK_WEIGHTS } from "@/lib/exam";
+
 
 export const Route = createFileRoute("/_app/collaborator")({
   component: CollaboratorResults,
@@ -143,7 +147,7 @@ function CollaboratorResults() {
   });
 
   // Peso de cada bloco no resultado geral (usa os padrões do sistema se o ciclo
-  // não tiver uma configuração própria: 60% competências / 30% metas / 5% / 5%)
+  // não tiver uma configuração própria: 60% competências / 20% metas / 10% prova / 5% / 5%)
   const { data: weightConfig } = useQuery({
     queryKey: ["my-weight-config", effective],
     enabled: !!effective,
@@ -157,10 +161,47 @@ function CollaboratorResults() {
       return data as EvaluationWeightConfig | null;
     },
   });
-  const competenciesWeight = weightConfig ? Number(weightConfig.competencies_weight) : 0.6;
-  const goalsWeight = weightConfig ? Number(weightConfig.goals_weight) : 0.3;
-  const academicWeight = weightConfig ? Number(weightConfig.academic_weight) : 0.05;
-  const certificationWeight = weightConfig ? Number(weightConfig.certification_weight) : 0.05;
+  const competenciesWeight = weightConfig ? Number(weightConfig.competencies_weight) : DEFAULT_BLOCK_WEIGHTS.competencies;
+  const goalsWeight = weightConfig ? Number(weightConfig.goals_weight) : DEFAULT_BLOCK_WEIGHTS.goals;
+  const academicWeight = weightConfig ? Number(weightConfig.academic_weight) : DEFAULT_BLOCK_WEIGHTS.academic;
+  const certificationWeight = weightConfig ? Number(weightConfig.certification_weight) : DEFAULT_BLOCK_WEIGHTS.certification;
+  const examWeight =
+    weightConfig?.knowledge_exam_weight != null
+      ? Number(weightConfig.knowledge_exam_weight)
+      : DEFAULT_BLOCK_WEIGHTS.knowledgeExam;
+
+  // Prova de Conhecimentos (lançada pelo Admin; o colaborador apenas visualiza)
+  const { data: exam } = useQuery({
+    queryKey: ["my-exam", person?.id, effective],
+    enabled: !!person?.id && !!effective,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exams")
+        .select("*")
+        .eq("person_id", person!.id)
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExam | null;
+    },
+  });
+
+  const { data: examWeights } = useQuery({
+    queryKey: ["my-exam-subweights", effective],
+    enabled: !!effective,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exam_weight_config")
+        .select("*")
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExamWeightConfig | null;
+    },
+  });
+
+  const examScore = useMemo(() => computeExamScore(exam, examWeights), [exam, examWeights]);
+
 
   // Nota de qualificação acadêmica: maior nível "atual" cadastrado para a pessoa
   const { data: academicScore } = useQuery({
@@ -253,18 +294,18 @@ function CollaboratorResults() {
 
   // Resultado consolidado final, ponderando apenas os blocos que já têm nota
   const competenciesScore = final?.final_result ?? null;
-  const overallFinalScore = useMemo(() => {
-    const parts = [
-      { score: competenciesScore, weight: competenciesWeight },
-      { score: goalsFinalScore, weight: goalsWeight },
-      { score: academicScore ?? null, weight: academicWeight },
-      { score: certificationScore ?? null, weight: certificationWeight },
-    ];
-    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
-    if (totalWeight <= 0) return null;
-    const totalWeighted = parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0);
-    return totalWeighted / totalWeight;
-  }, [competenciesScore, competenciesWeight, goalsFinalScore, goalsWeight, academicScore, academicWeight, certificationScore, certificationWeight]);
+  const overallFinalScore = useMemo(
+    () =>
+      weightedOverall([
+        { score: competenciesScore, weight: competenciesWeight },
+        { score: goalsFinalScore, weight: goalsWeight },
+        { score: examScore, weight: examWeight },
+        { score: academicScore ?? null, weight: academicWeight },
+        { score: certificationScore ?? null, weight: certificationWeight },
+      ]),
+    [competenciesScore, competenciesWeight, goalsFinalScore, goalsWeight, examScore, examWeight, academicScore, academicWeight, certificationScore, certificationWeight],
+  );
+
 
   const radialData = [{ name: "Final", value: overallFinalScore ?? 0, fill: "var(--primary)" }];
 
@@ -322,9 +363,11 @@ function CollaboratorResults() {
                   <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                     <MiniStat label="Competências" v={competenciesScore} w={competenciesWeight} />
                     <MiniStat label="Metas" v={goalsFinalScore} w={goalsWeight} />
+                    <MiniStat label="Prova de Conhecimentos" v={examScore} w={examWeight} />
                     <MiniStat label="Qualificação" v={academicScore ?? null} w={academicWeight} />
                     <MiniStat label="Certificação" v={certificationScore ?? null} w={certificationWeight} />
                   </div>
+
                 </CardContent>
               </Card>
 
@@ -397,8 +440,10 @@ function CollaboratorResults() {
                   <TableBody>
                     <SummaryRow label="Competências" score={competenciesScore} weight={competenciesWeight} />
                     <SummaryRow label="Metas" score={goalsFinalScore} weight={goalsWeight} />
+                    <SummaryRow label="Prova de Conhecimentos" score={examScore} weight={examWeight} />
                     <SummaryRow label="Qualificação Acadêmica" score={academicScore ?? null} weight={academicWeight} />
                     <SummaryRow label="Certificações" score={certificationScore ?? null} weight={certificationWeight} />
+
                     <TableRow className="border-t-2">
                       <TableCell className="font-bold">Nota Final Geral</TableCell>
                       <TableCell colSpan={2}></TableCell>
@@ -408,7 +453,37 @@ function CollaboratorResults() {
                 </Table>
               </CardContent>
             </Card>
+
+            <Card className="card-hover">
+              <CardHeader><CardTitle>Prova de Conhecimentos</CardTitle></CardHeader>
+              <CardContent>
+                {exam ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Critério</TableHead>
+                        <TableHead className="text-right">Nota (0-10)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow><TableCell>Legislação do setor</TableCell><TableCell className="text-right">{fmt(exam.sector_legislation_score)}</TableCell></TableRow>
+                      <TableRow><TableCell>Legislação específica aplicável à função</TableCell><TableCell className="text-right">{fmt(exam.specific_legislation_score)}</TableCell></TableRow>
+                      <TableRow><TableCell>Normativos internos</TableCell><TableCell className="text-right">{fmt(exam.internal_norms_score)}</TableCell></TableRow>
+                      <TableRow className="border-t-2">
+                        <TableCell className="font-bold">Nota da prova (0-5)</TableCell>
+                        <TableCell className="text-right font-bold text-primary">{fmt(examScore)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhuma nota de Prova de Conhecimentos lançada neste ciclo.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
           {/* ----------------- AVALIAÇÃO 360° ----------------- */}
           <TabsContent value="competencies" className="mt-4 space-y-6">

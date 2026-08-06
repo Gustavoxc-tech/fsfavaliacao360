@@ -15,6 +15,9 @@ const tabs = [
   { to: "/admin/goals", label: "Metas" },
   { to: "/admin/academic", label: "Qualificação" },
   { to: "/admin/certifications", label: "Certificações" },
+  { to: "/admin/exams", label: "Prova de Conhecimentos" },
+  { to: "/admin/weights", label: "Pesos" },
+
 ];
 
 function AdminLayout() {

@@ -19,7 +19,10 @@ import type {
   Goal,
   GoalCategory,
   EvaluationWeightConfig,
+  KnowledgeExam,
+  KnowledgeExamWeightConfig,
 } from "@/lib/db-types";
+import { computeExamScore, weightedOverall, DEFAULT_BLOCK_WEIGHTS } from "@/lib/exam";
 
 export const Route = createFileRoute("/_app/reports")({
   component: ReportsPage,
@@ -46,16 +49,23 @@ const METHOD_TEXT = {
     "alcance (soma do obtido ÷ soma do esperado) e multiplica-se pelo peso da categoria. O resultado de " +
     "Metas é a soma desses valores ponderados dividida pela soma dos pesos das categorias com meta " +
     "cadastrada, numa escala de 0 a 5.",
+  exam:
+    "A prova é aplicada presencialmente pelo gestor imediato e o resultado é registrado pelo RH/Admin em três " +
+    "notas de 0 a 10: Legislação do setor, Legislação específica aplicável à função e Normativos internos. " +
+    "A nota da prova é a média ponderada dessas três notas (pesos configuráveis por ciclo, somando 100%), " +
+    "convertida para a escala de 0 a 5 dividindo por 2.",
   academic:
     "É considerado o maior nível de formação acadêmica marcado como 'atual' no cadastro da pessoa " +
     "(ex.: Graduação, Pós-Graduação, Mestrado), cada um com uma nota de 0 a 5 definida previamente pelo RH.",
   certification:
     "É a soma dos bônus de todas as certificações profissionais marcadas como obtidas no cadastro da pessoa.",
   overall:
-    "O Resultado Final Geral é a média ponderada dos 4 blocos acima (pesos padrão: 60% Competências, 30% " +
-    "Metas, 5% Qualificação Acadêmica, 5% Certificações — configuráveis por ciclo). Se algum bloco ainda " +
-    "não tem nota, o peso dele é redistribuído entre os blocos que já têm nota, em vez de contar como zero.",
+    "O Resultado Final Geral é a média ponderada dos 5 blocos acima (pesos padrão: 60% Competências, 20% " +
+    "Metas, 10% Prova de Conhecimentos, 5% Qualificação Acadêmica, 5% Certificações — configuráveis por ciclo). " +
+    "Se algum bloco ainda não tem nota, ele é ignorado no cálculo: a nota final é a soma das contribuições dos " +
+    "blocos com nota dividida pela soma dos pesos apenas desses blocos, em vez de contar como zero.",
 };
+
 
 function ReportsPage() {
   const { isAdmin, loading } = useAuth();
@@ -113,11 +123,41 @@ function ReportsPage() {
     },
   });
   const weights = {
-    competencies: weightConfig ? Number(weightConfig.competencies_weight) : 0.6,
-    goals: weightConfig ? Number(weightConfig.goals_weight) : 0.3,
-    academic: weightConfig ? Number(weightConfig.academic_weight) : 0.05,
-    certification: weightConfig ? Number(weightConfig.certification_weight) : 0.05,
+    competencies: weightConfig ? Number(weightConfig.competencies_weight) : DEFAULT_BLOCK_WEIGHTS.competencies,
+    goals: weightConfig ? Number(weightConfig.goals_weight) : DEFAULT_BLOCK_WEIGHTS.goals,
+    academic: weightConfig ? Number(weightConfig.academic_weight) : DEFAULT_BLOCK_WEIGHTS.academic,
+    certification: weightConfig ? Number(weightConfig.certification_weight) : DEFAULT_BLOCK_WEIGHTS.certification,
+    exam:
+      weightConfig?.knowledge_exam_weight != null
+        ? Number(weightConfig.knowledge_exam_weight)
+        : DEFAULT_BLOCK_WEIGHTS.knowledgeExam,
   };
+
+  // Prova de Conhecimentos do ciclo (todas as pessoas)
+  const { data: examRows } = useQuery({
+    queryKey: ["report-exams", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("knowledge_exams").select("*").eq("cycle_id", cycleId);
+      if (error) throw error;
+      return (data ?? []) as KnowledgeExam[];
+    },
+  });
+
+  const { data: examWeights } = useQuery({
+    queryKey: ["report-exam-subweights", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exam_weight_config")
+        .select("*")
+        .eq("cycle_id", cycleId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExamWeightConfig | null;
+    },
+  });
+
 
   // Metas de todo o ciclo (todas as pessoas de uma vez, para montar o relatório)
   const { data: allGoals } = useQuery({
@@ -210,18 +250,20 @@ function ReportsPage() {
       ? myCerts.reduce((s, r) => s + Number(r.certifications_catalog?.bonus ?? 0), 0)
       : null;
 
-    const parts = [
+    const exam = (examRows ?? []).find((e) => e.person_id === f.evaluatee_person_id) ?? null;
+    const examScore = computeExamScore(exam, examWeights);
+
+    const overallFinalScore = weightedOverall([
       { score: competenciesScore, weight: weights.competencies },
       { score: goalsScore, weight: weights.goals },
+      { score: examScore, weight: weights.exam },
       { score: academicScore, weight: weights.academic },
       { score: certificationScore, weight: weights.certification },
-    ];
-    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
-    const overallFinalScore =
-      totalWeight > 0 ? parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0) / totalWeight : null;
+    ]);
 
-    return { competenciesScore, goalsScore, academicScore, certificationScore, overallFinalScore, goalsByCategory };
+    return { competenciesScore, goalsScore, examScore, exam, academicScore, certificationScore, overallFinalScore, goalsByCategory };
   }
+
 
   // ---------------------------- EXPORT EXCEL (.xlsx) ----------------------------
   const exportXLSX = async (final: VEvaluateeFinalResult) => {
@@ -256,6 +298,8 @@ function ReportsPage() {
       const kpiRows: [string, number | null, number][] = [
         ["Competências (Avaliação 360°)", c.competenciesScore, weights.competencies],
         ["Metas", c.goalsScore, weights.goals],
+        ["Prova de Conhecimentos", c.examScore, weights.exam],
+
         ["Qualificação Acadêmica", c.academicScore, weights.academic],
         ["Certificações", c.certificationScore, weights.certification],
       ];
@@ -297,6 +341,25 @@ function ReportsPage() {
         }
       }
 
+      if (c.exam) {
+        ws.addRow([]);
+        const examTitle = ws.addRow(["Prova de Conhecimentos"]);
+        examTitle.getCell(1).font = { bold: true, size: 13, color: { argb: "FF" + BRAND.primaryHex } };
+        const examHeaderRow = ws.addRow(["Critério", "Nota (0-10)"]);
+        styleHeaderRow(examHeaderRow, 2);
+        const examItems: [string, number | null][] = [
+          ["Legislação do setor", c.exam.sector_legislation_score],
+          ["Legislação específica aplicável à função", c.exam.specific_legislation_score],
+          ["Normativos internos", c.exam.internal_norms_score],
+        ];
+        for (const [label, v] of examItems) {
+          const row = ws.addRow([label, numOrDash(v)]);
+          row.eachCell((cell) => (cell.border = THIN_BORDER));
+        }
+        const examFinal = ws.addRow(["Nota da prova (0-5)", c.examScore != null ? Number(c.examScore.toFixed(2)) : "—"]);
+        examFinal.font = { bold: true, color: { argb: "FF" + BRAND.primaryHex } };
+      }
+
       // ---- Aba 2: Metodologia ----
       const wsM = wb.addWorksheet("Metodologia de Cálculo");
       wsM.mergeCells("A1:B1");
@@ -305,11 +368,13 @@ function ReportsPage() {
       wsM.columns = [{ width: 26 }, { width: 100 }];
       const methodRows: [string, string][] = [
         ["1. Competências (60%)", METHOD_TEXT.competencies],
-        ["2. Metas (30%)", METHOD_TEXT.goals],
-        ["3. Qualificação Acadêmica (5%)", METHOD_TEXT.academic],
-        ["4. Certificações (5%)", METHOD_TEXT.certification],
+        ["2. Metas (20%)", METHOD_TEXT.goals],
+        ["3. Prova de Conhecimentos (10%)", METHOD_TEXT.exam],
+        ["4. Qualificação Acadêmica (5%)", METHOD_TEXT.academic],
+        ["5. Certificações (5%)", METHOD_TEXT.certification],
         ["Resultado Final Geral", METHOD_TEXT.overall],
       ];
+
       wsM.addRow([]);
       for (const [title, text] of methodRows) {
         const row = wsM.addRow([title, text]);
@@ -372,6 +437,8 @@ function ReportsPage() {
         body: [
           ["Competências (Avaliação 360°)", fmt(c.competenciesScore), `${(weights.competencies * 100).toFixed(0)}%`, fmt(c.competenciesScore != null ? c.competenciesScore * weights.competencies : null)],
           ["Metas", fmt(c.goalsScore), `${(weights.goals * 100).toFixed(0)}%`, fmt(c.goalsScore != null ? c.goalsScore * weights.goals : null)],
+          ["Prova de Conhecimentos", fmt(c.examScore), `${(weights.exam * 100).toFixed(0)}%`, fmt(c.examScore != null ? c.examScore * weights.exam : null)],
+
           ["Qualificação Acadêmica", fmt(c.academicScore), `${(weights.academic * 100).toFixed(0)}%`, fmt(c.academicScore != null ? c.academicScore * weights.academic : null)],
           ["Certificações", fmt(c.certificationScore), `${(weights.certification * 100).toFixed(0)}%`, fmt(c.certificationScore != null ? c.certificationScore * weights.certification : null)],
         ],
@@ -424,6 +491,30 @@ function ReportsPage() {
         });
       }
 
+      if (c.exam) {
+        y = (doc as any).lastAutoTable.finalY + 12;
+        if (y > 240) { doc.addPage(); y = 20; }
+        doc.setFontSize(13);
+        doc.setTextColor(...BRAND.primaryRgb);
+        doc.text("Prova de Conhecimentos", 14, y);
+        doc.setTextColor(0, 0, 0);
+        y += 4;
+        autoTable(doc, {
+          startY: y,
+          head: [["Critério", "Nota (0-10)"]],
+          body: [
+            ["Legislação do setor", fmt(c.exam.sector_legislation_score)],
+            ["Legislação específica aplicável à função", fmt(c.exam.specific_legislation_score)],
+            ["Normativos internos", fmt(c.exam.internal_norms_score)],
+          ],
+          foot: [["Nota da prova (0-5)", fmt(c.examScore)]],
+          theme: "grid",
+          headStyles: { fillColor: BRAND.accentRgb },
+          footStyles: { fillColor: [230, 240, 238], textColor: BRAND.primaryRgb, fontStyle: "bold" },
+          styles: { fontSize: 8 },
+        });
+      }
+
       // ---- Página de metodologia ----
       doc.addPage();
       doc.setFillColor(...BRAND.primaryRgb);
@@ -436,11 +527,13 @@ function ReportsPage() {
       let my = 34;
       const methodItems: [string, string][] = [
         ["1. Competências — Avaliação 360° (peso padrão 60%)", METHOD_TEXT.competencies],
-        ["2. Metas (peso padrão 30%)", METHOD_TEXT.goals],
-        ["3. Qualificação Acadêmica (peso padrão 5%)", METHOD_TEXT.academic],
-        ["4. Certificações (peso padrão 5%)", METHOD_TEXT.certification],
+        ["2. Metas (peso padrão 20%)", METHOD_TEXT.goals],
+        ["3. Prova de Conhecimentos (peso padrão 10%)", METHOD_TEXT.exam],
+        ["4. Qualificação Acadêmica (peso padrão 5%)", METHOD_TEXT.academic],
+        ["5. Certificações (peso padrão 5%)", METHOD_TEXT.certification],
         ["Resultado Final Geral", METHOD_TEXT.overall],
       ];
+
       doc.setFontSize(10);
       for (const [title, text] of methodItems) {
         doc.setFont("helvetica", "bold");
@@ -496,6 +589,8 @@ function ReportsPage() {
                 <TableHead className="text-right">Auto</TableHead>
                 <TableHead className="text-right">Compet.</TableHead>
                 <TableHead className="text-right">Metas</TableHead>
+                <TableHead className="text-right">Prova</TableHead>
+
                 <TableHead className="text-right">Qualif.</TableHead>
                 <TableHead className="text-right">Cert.</TableHead>
                 <TableHead className="text-right">Final Geral</TableHead>
@@ -516,6 +611,8 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(c.competenciesScore)}</TableCell>
                     <TableCell className="text-right">{fmt(c.goalsScore)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.examScore)}</TableCell>
+
                     <TableCell className="text-right">{fmt(c.academicScore)}</TableCell>
                     <TableCell className="text-right">{fmt(c.certificationScore)}</TableCell>
                     <TableCell className="text-right font-bold text-primary">{fmt(c.overallFinalScore)}</TableCell>
@@ -539,7 +636,7 @@ function ReportsPage() {
                 );
               })}
               {finals?.length === 0 && (
-                <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground py-6">Sem dados neste ciclo.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
