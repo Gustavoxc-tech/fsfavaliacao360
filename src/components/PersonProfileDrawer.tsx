@@ -317,13 +317,25 @@ export function PersonProfileDrawer({
                     </div>
                   </div>
                   {overall && (
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                      <MiniBlock label="Competências" v={overall.competencies_score} />
-                      <MiniBlock label="Metas" v={overall.goals_final_score} />
-                      <MiniBlock label="Qualificação" v={overall.academic_final_score} />
-                      <MiniBlock label="Certificação" v={overall.certification_final_score} />
-                    </div>
+                    <>
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                        <MiniBlock label="Competências" v={overall.competencies_score} />
+                        <MiniBlock label="Metas" v={overall.goals_final_score} />
+                        <MiniBlock label="Prova de Conhecimentos" v={overall.knowledge_exam_final_score} />
+                        <MiniBlock label="Qualificação" v={overall.academic_final_score} />
+                        <MiniBlock label="Certificação" v={overall.certification_final_score} />
+                      </div>
+                      {overall.knowledge_exam_final_score != null && (
+                        <div className="mt-3 rounded-md border p-3 text-xs space-y-1">
+                          <div className="font-medium text-muted-foreground">Prova de Conhecimentos (notas de 0 a 10)</div>
+                          <div className="flex justify-between"><span>Legislação do setor</span><span>{fmt(overall.sector_legislation_score)}</span></div>
+                          <div className="flex justify-between"><span>Legislação específica</span><span>{fmt(overall.specific_legislation_score)}</span></div>
+                          <div className="flex justify-between"><span>Normativos internos</span><span>{fmt(overall.internal_norms_score)}</span></div>
+                        </div>
+                      )}
+                    </>
                   )}
+
                 </div>
 
                 {/* NOVO BLOCO: MATRIZ DE QUADRANTES */}
