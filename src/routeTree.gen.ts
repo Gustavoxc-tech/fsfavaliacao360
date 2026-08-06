@@ -19,9 +19,11 @@ import { Route as AppAdminRouteImport } from './routes/_app.admin'
 import { Route as AppEvaluatorIndexRouteImport } from './routes/_app.evaluator.index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app.admin.index'
 import { Route as AppEvaluatorAssignmentIdRouteImport } from './routes/_app.evaluator.$assignmentId'
+import { Route as AppAdminWeightsRouteImport } from './routes/_app.admin.weights'
 import { Route as AppAdminPeopleRouteImport } from './routes/_app.admin.people'
 import { Route as AppAdminPendingRouteImport } from './routes/_app.admin.pending'
 import { Route as AppAdminGoalsRouteImport } from './routes/_app.admin.goals'
+import { Route as AppAdminExamsRouteImport } from './routes/_app.admin.exams'
 import { Route as AppAdminCyclesRouteImport } from './routes/_app.admin.cycles'
 import { Route as AppAdminCompetenciesRouteImport } from './routes/_app.admin.competencies'
 import { Route as AppAdminCertificationsRouteImport } from './routes/_app.admin.certifications'
@@ -78,6 +80,11 @@ const AppEvaluatorAssignmentIdRoute =
     path: '/$assignmentId',
     getParentRoute: () => AppEvaluatorRoute,
   } as any)
+const AppAdminWeightsRoute = AppAdminWeightsRouteImport.update({
+  id: '/weights',
+  path: '/weights',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminPeopleRoute = AppAdminPeopleRouteImport.update({
   id: '/people',
   path: '/people',
@@ -91,6 +98,11 @@ const AppAdminPendingRoute = AppAdminPendingRouteImport.update({
 const AppAdminGoalsRoute = AppAdminGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminExamsRoute = AppAdminExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminCyclesRoute = AppAdminCyclesRouteImport.update({
@@ -131,9 +143,11 @@ export interface FileRoutesByFullPath {
   '/admin/certifications': typeof AppAdminCertificationsRoute
   '/admin/competencies': typeof AppAdminCompetenciesRoute
   '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/exams': typeof AppAdminExamsRoute
   '/admin/goals': typeof AppAdminGoalsRoute
   '/admin/pending': typeof AppAdminPendingRoute
   '/admin/people': typeof AppAdminPeopleRoute
+  '/admin/weights': typeof AppAdminWeightsRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/evaluator/': typeof AppEvaluatorIndexRoute
@@ -148,9 +162,11 @@ export interface FileRoutesByTo {
   '/admin/certifications': typeof AppAdminCertificationsRoute
   '/admin/competencies': typeof AppAdminCompetenciesRoute
   '/admin/cycles': typeof AppAdminCyclesRoute
+  '/admin/exams': typeof AppAdminExamsRoute
   '/admin/goals': typeof AppAdminGoalsRoute
   '/admin/pending': typeof AppAdminPendingRoute
   '/admin/people': typeof AppAdminPeopleRoute
+  '/admin/weights': typeof AppAdminWeightsRoute
   '/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/evaluator': typeof AppEvaluatorIndexRoute
@@ -169,9 +185,11 @@ export interface FileRoutesById {
   '/_app/admin/certifications': typeof AppAdminCertificationsRoute
   '/_app/admin/competencies': typeof AppAdminCompetenciesRoute
   '/_app/admin/cycles': typeof AppAdminCyclesRoute
+  '/_app/admin/exams': typeof AppAdminExamsRoute
   '/_app/admin/goals': typeof AppAdminGoalsRoute
   '/_app/admin/pending': typeof AppAdminPendingRoute
   '/_app/admin/people': typeof AppAdminPeopleRoute
+  '/_app/admin/weights': typeof AppAdminWeightsRoute
   '/_app/evaluator/$assignmentId': typeof AppEvaluatorAssignmentIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/evaluator/': typeof AppEvaluatorIndexRoute
@@ -190,9 +208,11 @@ export interface FileRouteTypes {
     | '/admin/certifications'
     | '/admin/competencies'
     | '/admin/cycles'
+    | '/admin/exams'
     | '/admin/goals'
     | '/admin/pending'
     | '/admin/people'
+    | '/admin/weights'
     | '/evaluator/$assignmentId'
     | '/admin/'
     | '/evaluator/'
@@ -207,9 +227,11 @@ export interface FileRouteTypes {
     | '/admin/certifications'
     | '/admin/competencies'
     | '/admin/cycles'
+    | '/admin/exams'
     | '/admin/goals'
     | '/admin/pending'
     | '/admin/people'
+    | '/admin/weights'
     | '/evaluator/$assignmentId'
     | '/admin'
     | '/evaluator'
@@ -227,9 +249,11 @@ export interface FileRouteTypes {
     | '/_app/admin/certifications'
     | '/_app/admin/competencies'
     | '/_app/admin/cycles'
+    | '/_app/admin/exams'
     | '/_app/admin/goals'
     | '/_app/admin/pending'
     | '/_app/admin/people'
+    | '/_app/admin/weights'
     | '/_app/evaluator/$assignmentId'
     | '/_app/admin/'
     | '/_app/evaluator/'
@@ -312,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEvaluatorAssignmentIdRouteImport
       parentRoute: typeof AppEvaluatorRoute
     }
+    '/_app/admin/weights': {
+      id: '/_app/admin/weights'
+      path: '/weights'
+      fullPath: '/admin/weights'
+      preLoaderRoute: typeof AppAdminWeightsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/people': {
       id: '/_app/admin/people'
       path: '/people'
@@ -331,6 +362,13 @@ declare module '@tanstack/react-router' {
       path: '/goals'
       fullPath: '/admin/goals'
       preLoaderRoute: typeof AppAdminGoalsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/exams': {
+      id: '/_app/admin/exams'
+      path: '/exams'
+      fullPath: '/admin/exams'
+      preLoaderRoute: typeof AppAdminExamsRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/cycles': {
@@ -377,9 +415,11 @@ interface AppAdminRouteChildren {
   AppAdminCertificationsRoute: typeof AppAdminCertificationsRoute
   AppAdminCompetenciesRoute: typeof AppAdminCompetenciesRoute
   AppAdminCyclesRoute: typeof AppAdminCyclesRoute
+  AppAdminExamsRoute: typeof AppAdminExamsRoute
   AppAdminGoalsRoute: typeof AppAdminGoalsRoute
   AppAdminPendingRoute: typeof AppAdminPendingRoute
   AppAdminPeopleRoute: typeof AppAdminPeopleRoute
+  AppAdminWeightsRoute: typeof AppAdminWeightsRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
 
@@ -389,9 +429,11 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminCertificationsRoute: AppAdminCertificationsRoute,
   AppAdminCompetenciesRoute: AppAdminCompetenciesRoute,
   AppAdminCyclesRoute: AppAdminCyclesRoute,
+  AppAdminExamsRoute: AppAdminExamsRoute,
   AppAdminGoalsRoute: AppAdminGoalsRoute,
   AppAdminPendingRoute: AppAdminPendingRoute,
   AppAdminPeopleRoute: AppAdminPeopleRoute,
+  AppAdminWeightsRoute: AppAdminWeightsRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
 }
 
@@ -438,13 +480,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

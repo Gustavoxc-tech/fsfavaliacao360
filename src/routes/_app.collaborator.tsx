@@ -36,7 +36,11 @@ import type {
   Goal,
   GoalCategory,
   EvaluationWeightConfig,
+  KnowledgeExam,
+  KnowledgeExamWeightConfig,
 } from "@/lib/db-types";
+import { computeExamScore, weightedOverall, DEFAULT_BLOCK_WEIGHTS } from "@/lib/exam";
+
 
 export const Route = createFileRoute("/_app/collaborator")({
   component: CollaboratorResults,
@@ -143,7 +147,7 @@ function CollaboratorResults() {
   });
 
   // Peso de cada bloco no resultado geral (usa os padrões do sistema se o ciclo
-  // não tiver uma configuração própria: 60% competências / 30% metas / 5% / 5%)
+  // não tiver uma configuração própria: 60% competências / 20% metas / 10% prova / 5% / 5%)
   const { data: weightConfig } = useQuery({
     queryKey: ["my-weight-config", effective],
     enabled: !!effective,
@@ -157,10 +161,47 @@ function CollaboratorResults() {
       return data as EvaluationWeightConfig | null;
     },
   });
-  const competenciesWeight = weightConfig ? Number(weightConfig.competencies_weight) : 0.6;
-  const goalsWeight = weightConfig ? Number(weightConfig.goals_weight) : 0.3;
-  const academicWeight = weightConfig ? Number(weightConfig.academic_weight) : 0.05;
-  const certificationWeight = weightConfig ? Number(weightConfig.certification_weight) : 0.05;
+  const competenciesWeight = weightConfig ? Number(weightConfig.competencies_weight) : DEFAULT_BLOCK_WEIGHTS.competencies;
+  const goalsWeight = weightConfig ? Number(weightConfig.goals_weight) : DEFAULT_BLOCK_WEIGHTS.goals;
+  const academicWeight = weightConfig ? Number(weightConfig.academic_weight) : DEFAULT_BLOCK_WEIGHTS.academic;
+  const certificationWeight = weightConfig ? Number(weightConfig.certification_weight) : DEFAULT_BLOCK_WEIGHTS.certification;
+  const examWeight =
+    weightConfig?.knowledge_exam_weight != null
+      ? Number(weightConfig.knowledge_exam_weight)
+      : DEFAULT_BLOCK_WEIGHTS.knowledgeExam;
+
+  // Prova de Conhecimentos (lançada pelo Admin; o colaborador apenas visualiza)
+  const { data: exam } = useQuery({
+    queryKey: ["my-exam", person?.id, effective],
+    enabled: !!person?.id && !!effective,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exams")
+        .select("*")
+        .eq("person_id", person!.id)
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExam | null;
+    },
+  });
+
+  const { data: examWeights } = useQuery({
+    queryKey: ["my-exam-subweights", effective],
+    enabled: !!effective,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exam_weight_config")
+        .select("*")
+        .eq("cycle_id", effective)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExamWeightConfig | null;
+    },
+  });
+
+  const examScore = useMemo(() => computeExamScore(exam, examWeights), [exam, examWeights]);
+
 
   // Nota de qualificação acadêmica: maior nível "atual" cadastrado para a pessoa
   const { data: academicScore } = useQuery({
