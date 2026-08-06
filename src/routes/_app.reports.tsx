@@ -491,6 +491,30 @@ function ReportsPage() {
         });
       }
 
+      if (c.exam) {
+        y = (doc as any).lastAutoTable.finalY + 12;
+        if (y > 240) { doc.addPage(); y = 20; }
+        doc.setFontSize(13);
+        doc.setTextColor(...BRAND.primaryRgb);
+        doc.text("Prova de Conhecimentos", 14, y);
+        doc.setTextColor(0, 0, 0);
+        y += 4;
+        autoTable(doc, {
+          startY: y,
+          head: [["Critério", "Nota (0-10)"]],
+          body: [
+            ["Legislação do setor", fmt(c.exam.sector_legislation_score)],
+            ["Legislação específica aplicável à função", fmt(c.exam.specific_legislation_score)],
+            ["Normativos internos", fmt(c.exam.internal_norms_score)],
+          ],
+          foot: [["Nota da prova (0-5)", fmt(c.examScore)]],
+          theme: "grid",
+          headStyles: { fillColor: BRAND.accentRgb },
+          footStyles: { fillColor: [230, 240, 238], textColor: BRAND.primaryRgb, fontStyle: "bold" },
+          styles: { fontSize: 8 },
+        });
+      }
+
       // ---- Página de metodologia ----
       doc.addPage();
       doc.setFillColor(...BRAND.primaryRgb);
@@ -503,11 +527,13 @@ function ReportsPage() {
       let my = 34;
       const methodItems: [string, string][] = [
         ["1. Competências — Avaliação 360° (peso padrão 60%)", METHOD_TEXT.competencies],
-        ["2. Metas (peso padrão 30%)", METHOD_TEXT.goals],
-        ["3. Qualificação Acadêmica (peso padrão 5%)", METHOD_TEXT.academic],
-        ["4. Certificações (peso padrão 5%)", METHOD_TEXT.certification],
+        ["2. Metas (peso padrão 20%)", METHOD_TEXT.goals],
+        ["3. Prova de Conhecimentos (peso padrão 10%)", METHOD_TEXT.exam],
+        ["4. Qualificação Acadêmica (peso padrão 5%)", METHOD_TEXT.academic],
+        ["5. Certificações (peso padrão 5%)", METHOD_TEXT.certification],
         ["Resultado Final Geral", METHOD_TEXT.overall],
       ];
+
       doc.setFontSize(10);
       for (const [title, text] of methodItems) {
         doc.setFont("helvetica", "bold");
