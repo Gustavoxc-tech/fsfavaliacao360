@@ -611,6 +611,8 @@ function ReportsPage() {
                     <TableCell className="text-right">{fmt(f.autoavaliacao_avg)}</TableCell>
                     <TableCell className="text-right">{fmt(c.competenciesScore)}</TableCell>
                     <TableCell className="text-right">{fmt(c.goalsScore)}</TableCell>
+                    <TableCell className="text-right">{fmt(c.examScore)}</TableCell>
+
                     <TableCell className="text-right">{fmt(c.academicScore)}</TableCell>
                     <TableCell className="text-right">{fmt(c.certificationScore)}</TableCell>
                     <TableCell className="text-right font-bold text-primary">{fmt(c.overallFinalScore)}</TableCell>
