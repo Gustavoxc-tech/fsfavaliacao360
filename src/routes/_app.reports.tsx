@@ -19,7 +19,10 @@ import type {
   Goal,
   GoalCategory,
   EvaluationWeightConfig,
+  KnowledgeExam,
+  KnowledgeExamWeightConfig,
 } from "@/lib/db-types";
+import { computeExamScore, weightedOverall, DEFAULT_BLOCK_WEIGHTS } from "@/lib/exam";
 
 export const Route = createFileRoute("/_app/reports")({
   component: ReportsPage,
@@ -46,16 +49,23 @@ const METHOD_TEXT = {
     "alcance (soma do obtido ÷ soma do esperado) e multiplica-se pelo peso da categoria. O resultado de " +
     "Metas é a soma desses valores ponderados dividida pela soma dos pesos das categorias com meta " +
     "cadastrada, numa escala de 0 a 5.",
+  exam:
+    "A prova é aplicada presencialmente pelo gestor imediato e o resultado é registrado pelo RH/Admin em três " +
+    "notas de 0 a 10: Legislação do setor, Legislação específica aplicável à função e Normativos internos. " +
+    "A nota da prova é a média ponderada dessas três notas (pesos configuráveis por ciclo, somando 100%), " +
+    "convertida para a escala de 0 a 5 dividindo por 2.",
   academic:
     "É considerado o maior nível de formação acadêmica marcado como 'atual' no cadastro da pessoa " +
     "(ex.: Graduação, Pós-Graduação, Mestrado), cada um com uma nota de 0 a 5 definida previamente pelo RH.",
   certification:
     "É a soma dos bônus de todas as certificações profissionais marcadas como obtidas no cadastro da pessoa.",
   overall:
-    "O Resultado Final Geral é a média ponderada dos 4 blocos acima (pesos padrão: 60% Competências, 30% " +
-    "Metas, 5% Qualificação Acadêmica, 5% Certificações — configuráveis por ciclo). Se algum bloco ainda " +
-    "não tem nota, o peso dele é redistribuído entre os blocos que já têm nota, em vez de contar como zero.",
+    "O Resultado Final Geral é a média ponderada dos 5 blocos acima (pesos padrão: 60% Competências, 20% " +
+    "Metas, 10% Prova de Conhecimentos, 5% Qualificação Acadêmica, 5% Certificações — configuráveis por ciclo). " +
+    "Se algum bloco ainda não tem nota, ele é ignorado no cálculo: a nota final é a soma das contribuições dos " +
+    "blocos com nota dividida pela soma dos pesos apenas desses blocos, em vez de contar como zero.",
 };
+
 
 function ReportsPage() {
   const { isAdmin, loading } = useAuth();
