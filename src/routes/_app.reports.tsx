@@ -589,6 +589,8 @@ function ReportsPage() {
                 <TableHead className="text-right">Auto</TableHead>
                 <TableHead className="text-right">Compet.</TableHead>
                 <TableHead className="text-right">Metas</TableHead>
+                <TableHead className="text-right">Prova</TableHead>
+
                 <TableHead className="text-right">Qualif.</TableHead>
                 <TableHead className="text-right">Cert.</TableHead>
                 <TableHead className="text-right">Final Geral</TableHead>
