@@ -363,9 +363,11 @@ function CollaboratorResults() {
                   <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                     <MiniStat label="Competências" v={competenciesScore} w={competenciesWeight} />
                     <MiniStat label="Metas" v={goalsFinalScore} w={goalsWeight} />
+                    <MiniStat label="Prova de Conhecimentos" v={examScore} w={examWeight} />
                     <MiniStat label="Qualificação" v={academicScore ?? null} w={academicWeight} />
                     <MiniStat label="Certificação" v={certificationScore ?? null} w={certificationWeight} />
                   </div>
+
                 </CardContent>
               </Card>
 
