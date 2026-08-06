@@ -250,18 +250,20 @@ function ReportsPage() {
       ? myCerts.reduce((s, r) => s + Number(r.certifications_catalog?.bonus ?? 0), 0)
       : null;
 
-    const parts = [
+    const exam = (examRows ?? []).find((e) => e.person_id === f.evaluatee_person_id) ?? null;
+    const examScore = computeExamScore(exam, examWeights);
+
+    const overallFinalScore = weightedOverall([
       { score: competenciesScore, weight: weights.competencies },
       { score: goalsScore, weight: weights.goals },
+      { score: examScore, weight: weights.exam },
       { score: academicScore, weight: weights.academic },
       { score: certificationScore, weight: weights.certification },
-    ];
-    const totalWeight = parts.reduce((s, p) => s + (p.score != null ? p.weight : 0), 0);
-    const overallFinalScore =
-      totalWeight > 0 ? parts.reduce((s, p) => s + (p.score != null ? p.score * p.weight : 0), 0) / totalWeight : null;
+    ]);
 
-    return { competenciesScore, goalsScore, academicScore, certificationScore, overallFinalScore, goalsByCategory };
+    return { competenciesScore, goalsScore, examScore, exam, academicScore, certificationScore, overallFinalScore, goalsByCategory };
   }
+
 
   // ---------------------------- EXPORT EXCEL (.xlsx) ----------------------------
   const exportXLSX = async (final: VEvaluateeFinalResult) => {
