@@ -202,7 +202,27 @@ export interface EvaluationWeightConfig {
   goals_weight: number;
   academic_weight: number;
   certification_weight: number;
+  knowledge_exam_weight: number;
 }
+
+export interface KnowledgeExam {
+  id: string;
+  person_id: string;
+  cycle_id: string;
+  sector_legislation_score: number | null;
+  specific_legislation_score: number | null;
+  internal_norms_score: number | null;
+  notes: string | null;
+}
+
+export interface KnowledgeExamWeightConfig {
+  id: string;
+  cycle_id: string;
+  sector_legislation_weight: number;
+  specific_legislation_weight: number;
+  internal_norms_weight: number;
+}
+
  
 export interface VGoalCategoryResult {
   evaluatee_id: string;
@@ -224,14 +244,21 @@ export interface VGoalFinalResult {
 export interface VPersonFinalScore {
   evaluatee_id: string;
   cycle_id: string;
+  evaluatee_person_id: string;
   evaluatee_name: string;
   competencies_score: number | null;
   goals_final_score: number | null;
   academic_final_score: number | null;
   certification_final_score: number | null;
+  knowledge_exam_final_score: number | null;
+  sector_legislation_score: number | null;
+  specific_legislation_score: number | null;
+  internal_norms_score: number | null;
   competencies_weight: number;
   goals_weight: number;
   academic_weight: number;
   certification_weight: number;
+  knowledge_exam_weight: number;
   overall_final_score: number | null;
 }
+
