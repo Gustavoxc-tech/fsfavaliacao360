@@ -123,11 +123,41 @@ function ReportsPage() {
     },
   });
   const weights = {
-    competencies: weightConfig ? Number(weightConfig.competencies_weight) : 0.6,
-    goals: weightConfig ? Number(weightConfig.goals_weight) : 0.3,
-    academic: weightConfig ? Number(weightConfig.academic_weight) : 0.05,
-    certification: weightConfig ? Number(weightConfig.certification_weight) : 0.05,
+    competencies: weightConfig ? Number(weightConfig.competencies_weight) : DEFAULT_BLOCK_WEIGHTS.competencies,
+    goals: weightConfig ? Number(weightConfig.goals_weight) : DEFAULT_BLOCK_WEIGHTS.goals,
+    academic: weightConfig ? Number(weightConfig.academic_weight) : DEFAULT_BLOCK_WEIGHTS.academic,
+    certification: weightConfig ? Number(weightConfig.certification_weight) : DEFAULT_BLOCK_WEIGHTS.certification,
+    exam:
+      weightConfig?.knowledge_exam_weight != null
+        ? Number(weightConfig.knowledge_exam_weight)
+        : DEFAULT_BLOCK_WEIGHTS.knowledgeExam,
   };
+
+  // Prova de Conhecimentos do ciclo (todas as pessoas)
+  const { data: examRows } = useQuery({
+    queryKey: ["report-exams", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("knowledge_exams").select("*").eq("cycle_id", cycleId);
+      if (error) throw error;
+      return (data ?? []) as KnowledgeExam[];
+    },
+  });
+
+  const { data: examWeights } = useQuery({
+    queryKey: ["report-exam-subweights", cycleId],
+    enabled: !!cycleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("knowledge_exam_weight_config")
+        .select("*")
+        .eq("cycle_id", cycleId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as KnowledgeExamWeightConfig | null;
+    },
+  });
+
 
   // Metas de todo o ciclo (todas as pessoas de uma vez, para montar o relatório)
   const { data: allGoals } = useQuery({
