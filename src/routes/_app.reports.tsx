@@ -298,6 +298,8 @@ function ReportsPage() {
       const kpiRows: [string, number | null, number][] = [
         ["Competências (Avaliação 360°)", c.competenciesScore, weights.competencies],
         ["Metas", c.goalsScore, weights.goals],
+        ["Prova de Conhecimentos", c.examScore, weights.exam],
+
         ["Qualificação Acadêmica", c.academicScore, weights.academic],
         ["Certificações", c.certificationScore, weights.certification],
       ];
