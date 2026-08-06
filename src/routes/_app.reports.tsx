@@ -437,6 +437,8 @@ function ReportsPage() {
         body: [
           ["Competências (Avaliação 360°)", fmt(c.competenciesScore), `${(weights.competencies * 100).toFixed(0)}%`, fmt(c.competenciesScore != null ? c.competenciesScore * weights.competencies : null)],
           ["Metas", fmt(c.goalsScore), `${(weights.goals * 100).toFixed(0)}%`, fmt(c.goalsScore != null ? c.goalsScore * weights.goals : null)],
+          ["Prova de Conhecimentos", fmt(c.examScore), `${(weights.exam * 100).toFixed(0)}%`, fmt(c.examScore != null ? c.examScore * weights.exam : null)],
+
           ["Qualificação Acadêmica", fmt(c.academicScore), `${(weights.academic * 100).toFixed(0)}%`, fmt(c.academicScore != null ? c.academicScore * weights.academic : null)],
           ["Certificações", fmt(c.certificationScore), `${(weights.certification * 100).toFixed(0)}%`, fmt(c.certificationScore != null ? c.certificationScore * weights.certification : null)],
         ],
