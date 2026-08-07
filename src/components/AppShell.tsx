@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ClipboardList, BarChart3, Settings, FileText, HelpCircle } from "lucide-react";
+import { LogOut, ClipboardList, ClipboardCheck, BarChart3, Settings, FileText, HelpCircle } from "lucide-react";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { useGuidedTour } from "@/components/GuidedTour";
 import logoAsset from "@/assets/fsfss-logo.png.asset.json";
@@ -19,6 +19,7 @@ const items: NavItem[] = [
   { to: "/evaluator", label: "Avaliações", icon: <ClipboardList className="h-4 w-4" />, tour: "nav-evaluator" },
   { to: "/collaborator", label: "Meus Resultados", icon: <BarChart3 className="h-4 w-4" />, tour: "nav-collaborator" },
   { to: "/admin", label: "Admin", icon: <Settings className="h-4 w-4" />, adminOnly: true, tour: "nav-admin" },
+  { to: "/pdi", label: "PDI", icon: <ClipboardCheck className="h-4 w-4" />, tour: "nav-pdi" },
   { to: "/reports", label: "Relatórios", icon: <FileText className="h-4 w-4" />, adminOnly: true, tour: "nav-reports" },
 ];
 
