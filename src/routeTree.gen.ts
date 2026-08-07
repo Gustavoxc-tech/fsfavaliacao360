@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppPdiRouteImport } from './routes/_app.pdi'
 import { Route as AppEvaluatorRouteImport } from './routes/_app.evaluator'
 import { Route as AppCollaboratorRouteImport } from './routes/_app.collaborator'
 import { Route as AppAdminRouteImport } from './routes/_app.admin'
@@ -47,6 +48,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPdiRoute = AppPdiRouteImport.update({
+  id: '/pdi',
+  path: '/pdi',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEvaluatorRoute = AppEvaluatorRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AppAdminRouteWithChildren
   '/collaborator': typeof AppCollaboratorRoute
   '/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/pdi': typeof AppPdiRoute
   '/reports': typeof AppReportsRoute
   '/admin/academic': typeof AppAdminAcademicRoute
   '/admin/assignments': typeof AppAdminAssignmentsRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/collaborator': typeof AppCollaboratorRoute
+  '/pdi': typeof AppPdiRoute
   '/reports': typeof AppReportsRoute
   '/': typeof AppIndexRoute
   '/admin/academic': typeof AppAdminAcademicRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/collaborator': typeof AppCollaboratorRoute
   '/_app/evaluator': typeof AppEvaluatorRouteWithChildren
+  '/_app/pdi': typeof AppPdiRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/academic': typeof AppAdminAcademicRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/collaborator'
     | '/evaluator'
+    | '/pdi'
     | '/reports'
     | '/admin/academic'
     | '/admin/assignments'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/collaborator'
+    | '/pdi'
     | '/reports'
     | '/'
     | '/admin/academic'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/_app/admin'
     | '/_app/collaborator'
     | '/_app/evaluator'
+    | '/_app/pdi'
     | '/_app/reports'
     | '/_app/'
     | '/_app/admin/academic'
@@ -292,6 +304,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pdi': {
+      id: '/_app/pdi'
+      path: '/pdi'
+      fullPath: '/pdi'
+      preLoaderRoute: typeof AppPdiRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/evaluator': {
@@ -459,6 +478,7 @@ interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppCollaboratorRoute: typeof AppCollaboratorRoute
   AppEvaluatorRoute: typeof AppEvaluatorRouteWithChildren
+  AppPdiRoute: typeof AppPdiRoute
   AppReportsRoute: typeof AppReportsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -467,6 +487,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppCollaboratorRoute: AppCollaboratorRoute,
   AppEvaluatorRoute: AppEvaluatorRouteWithChildren,
+  AppPdiRoute: AppPdiRoute,
   AppReportsRoute: AppReportsRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -480,13 +501,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

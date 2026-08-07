@@ -1,4 +1,30 @@
 export type AppRole = "admin" | "user";
+
+export interface DevelopmentPlan {
+  id: string;
+  person_id: string;
+  cycle_id: string;
+  period: string | null;
+  status: "pendente_cadastro" | "em_andamento" | "concluido";
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DevelopmentPlanItem {
+  id: string;
+  plan_id: string;
+  competency_id: string | null;
+  category: string | null;
+  current_score: number | null;
+  target_score: number | null;
+  action: string | null;
+  responsible: string | null;
+  due_date: string | null;
+  source: "auto" | "manual";
+}
+
  
 export interface Competency {
   id: string;
