@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ClipboardList, BarChart3, Settings, FileText, HelpCircle } from "lucide-react";
+import { LogOut, ClipboardList, ClipboardCheck, BarChart3, Settings, FileText, HelpCircle } from "lucide-react";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { useGuidedTour } from "@/components/GuidedTour";
 import logoAsset from "@/assets/fsfss-logo.png.asset.json";
