@@ -271,7 +271,10 @@ function PlanEditor({
         const d = drafts[it.id];
         if (!d) continue;
         const payload = {
-          target_score: d.target_score === "" || d.target_score === undefined ? it.target_score : Number(d.target_score),
+          target_score:
+            d.target_score === undefined || d.target_score === null || (d.target_score as unknown) === ""
+              ? it.target_score
+              : Number(d.target_score),
           action: (d.action ?? it.action) || null,
           responsible: (d.responsible ?? it.responsible) || null,
           due_date: (d.due_date ?? it.due_date) || null,
